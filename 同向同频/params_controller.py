@@ -6,10 +6,9 @@ from wave_calculations import calculate_combined_wave_params
 class ParamsController:
     """控制和管理波形参数"""
     
-    def __init__(self, sliders, buttons, text_elements):
+    def __init__(self, sliders, text_elements):
         """初始化参数控制器"""
         self.sliders = sliders
-        self.buttons = buttons
         self.text_elements = text_elements
         self.current_params = INITIAL_PARAMS.copy()
     

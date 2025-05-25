@@ -121,25 +121,25 @@ def create_parameter_displays(fig):
     """创建参数显示文本"""
     # X方向参数显示 - 调整位置和对齐方式
     wave_x_eq_text = fig.text(0.19, 0.95, 'x = A1*sin(w1*t + p1)', ha='center', **VALUE_FONT_X)
-    fig.text(0.08, 0.90, 'A1:', ha='left', **LABEL_FONT)
-    fig.text(0.08, 0.86, 'w1:', ha='left', **LABEL_FONT)
-    fig.text(0.08, 0.82, 'p1:', ha='left', **LABEL_FONT)
+    fig.text(0.08, 0.91, 'A1:', ha='left', **LABEL_FONT)
+    fig.text(0.08, 0.87, 'w1:', ha='left', **LABEL_FONT)
+    fig.text(0.08, 0.83, 'p1:', ha='left', **LABEL_FONT)
 
     # X方向参数值 - 增加右侧间距
-    text_a1 = fig.text(0.32, 0.90, "1.0", ha='right', **VALUE_FONT_X)
-    text_w1 = fig.text(0.32, 0.86, "1.0", ha='right', **VALUE_FONT_X)
-    text_p1 = fig.text(0.32, 0.82, "0.0", ha='right', **VALUE_FONT_X)
+    text_a1 = fig.text(0.32, 0.91, "1.0", ha='right', **VALUE_FONT_X)
+    text_w1 = fig.text(0.32, 0.87, "1.0", ha='right', **VALUE_FONT_X)
+    text_p1 = fig.text(0.32, 0.83, "0.0", ha='right', **VALUE_FONT_X)
 
     # Y方向参数显示 - 调整位置
     wave_y_eq_text = fig.text(0.19, 0.75, 'y = A2*sin(w2*t + p2)', ha='center', **VALUE_FONT_Y)
-    fig.text(0.08, 0.70, 'A2:', ha='left', **LABEL_FONT)
-    fig.text(0.08, 0.66, 'w2:', ha='left', **LABEL_FONT)
-    fig.text(0.08, 0.62, 'p2:', ha='left', **LABEL_FONT)
+    fig.text(0.08, 0.71, 'A2:', ha='left', **LABEL_FONT)
+    fig.text(0.08, 0.67, 'w2:', ha='left', **LABEL_FONT)
+    fig.text(0.08, 0.63, 'p2:', ha='left', **LABEL_FONT)
 
     # Y方向参数值 - 增加右侧间距
-    text_a2 = fig.text(0.32, 0.70, "1.0", ha='right', **VALUE_FONT_Y)
-    text_w2 = fig.text(0.32, 0.66, "2.0", ha='right', **VALUE_FONT_Y) 
-    text_p2 = fig.text(0.32, 0.62, "0.0", ha='right', **VALUE_FONT_Y)
+    text_a2 = fig.text(0.32, 0.71, "1.0", ha='right', **VALUE_FONT_Y)
+    text_w2 = fig.text(0.32, 0.67, "2.0", ha='right', **VALUE_FONT_Y) 
+    text_p2 = fig.text(0.32, 0.63, "0.0", ha='right', **VALUE_FONT_Y)
 
     # 频率比显示 - 调整位置
     ratio_text = fig.text(0.19, 0.55, 'w2:w1 = 2:1', ha='center', color=TRAJECTORY_COLOR, 
@@ -154,20 +154,20 @@ def create_parameter_displays(fig):
 
     # 滑块标签 - 调整透明度和位置
     # X滑块标签 - 使用半透明背景
-    for pos_y, label in [(0.88, "最小"), (0.84, "最小"), (0.80, "0")]:
+    for pos_y, label in [(0.89, "最小"), (0.85, "最小"), (0.81, "0")]:
         text = fig.text(0.08, pos_y, label, fontsize=8, color=TEXT_COLOR, ha='left', va='bottom', alpha=0.7)
         text.set_bbox(dict(facecolor=BACKGROUND_COLOR, alpha=0.5, edgecolor='none', pad=1))
         
-    for pos_y, label in [(0.88, "最大"), (0.84, "最大"), (0.80, "2π")]:
+    for pos_y, label in [(0.89, "最大"), (0.85, "最大"), (0.81, "2π")]:
         text = fig.text(0.33, pos_y, label, fontsize=8, color=TEXT_COLOR, ha='right', va='bottom', alpha=0.7)
         text.set_bbox(dict(facecolor=BACKGROUND_COLOR, alpha=0.5, edgecolor='none', pad=1))
 
     # Y滑块标签 - 使用半透明背景
-    for pos_y, label in [(0.68, "最小"), (0.64, "最小"), (0.60, "0")]:
+    for pos_y, label in [(0.69, "最小"), (0.65, "最小"), (0.61, "0")]:
         text = fig.text(0.08, pos_y, label, fontsize=8, color=TEXT_COLOR, ha='left', va='bottom', alpha=0.7)
         text.set_bbox(dict(facecolor=BACKGROUND_COLOR, alpha=0.5, edgecolor='none', pad=1))
         
-    for pos_y, label in [(0.68, "最大"), (0.64, "最大"), (0.60, "2π")]:
+    for pos_y, label in [(0.69, "最大"), (0.65, "最大"), (0.61, "2π")]:
         text = fig.text(0.33, pos_y, label, fontsize=8, color=TEXT_COLOR, ha='right', va='bottom', alpha=0.7)
         text.set_bbox(dict(facecolor=BACKGROUND_COLOR, alpha=0.5, edgecolor='none', pad=1))
 
@@ -197,14 +197,14 @@ def create_parameter_displays(fig):
 def create_sliders(fig):
     """创建所有滑块控件"""
     # X参数滑块 - 调整位置和宽度
-    a1_slider_ax = fig.add_axes([0.08, 0.88, SLIDER_WIDTH, SLIDER_HEIGHT], facecolor=SLIDER_TRACK_COLOR)
-    w1_slider_ax = fig.add_axes([0.08, 0.84, SLIDER_WIDTH, SLIDER_HEIGHT], facecolor=SLIDER_TRACK_COLOR)
-    p1_slider_ax = fig.add_axes([0.08, 0.80, SLIDER_WIDTH, SLIDER_HEIGHT], facecolor=SLIDER_TRACK_COLOR)
+    a1_slider_ax = fig.add_axes([0.08, 0.89, SLIDER_WIDTH, SLIDER_HEIGHT], facecolor=SLIDER_TRACK_COLOR)
+    w1_slider_ax = fig.add_axes([0.08, 0.85, SLIDER_WIDTH, SLIDER_HEIGHT], facecolor=SLIDER_TRACK_COLOR)
+    p1_slider_ax = fig.add_axes([0.08, 0.81, SLIDER_WIDTH, SLIDER_HEIGHT], facecolor=SLIDER_TRACK_COLOR)
 
     # Y参数滑块 - 调整位置和宽度
-    a2_slider_ax = fig.add_axes([0.08, 0.68, SLIDER_WIDTH, SLIDER_HEIGHT], facecolor=SLIDER_TRACK_COLOR)
-    w2_slider_ax = fig.add_axes([0.08, 0.64, SLIDER_WIDTH, SLIDER_HEIGHT], facecolor=SLIDER_TRACK_COLOR)
-    p2_slider_ax = fig.add_axes([0.08, 0.60, SLIDER_WIDTH, SLIDER_HEIGHT], facecolor=SLIDER_TRACK_COLOR)
+    a2_slider_ax = fig.add_axes([0.08, 0.69, SLIDER_WIDTH, SLIDER_HEIGHT], facecolor=SLIDER_TRACK_COLOR)
+    w2_slider_ax = fig.add_axes([0.08, 0.65, SLIDER_WIDTH, SLIDER_HEIGHT], facecolor=SLIDER_TRACK_COLOR)
+    p2_slider_ax = fig.add_axes([0.08, 0.61, SLIDER_WIDTH, SLIDER_HEIGHT], facecolor=SLIDER_TRACK_COLOR)
 
     # 速度和轨迹滑块 - 调整位置和垂直间距
     speed_slider_ax = fig.add_axes([0.08, 0.23, SLIDER_WIDTH, SLIDER_HEIGHT], facecolor=SLIDER_TRACK_COLOR)
@@ -273,9 +273,9 @@ def create_buttons(fig):
     }
 
     # 播放控制按钮 - 增加间距和位置调整
-    play_button_ax = fig.add_axes([0.05, 0.12, BUTTON_WIDTH, BUTTON_HEIGHT])
-    pause_button_ax = fig.add_axes([0.17, 0.12, BUTTON_WIDTH, BUTTON_HEIGHT])
-    reset_button_ax = fig.add_axes([0.29, 0.12, BUTTON_WIDTH, BUTTON_HEIGHT])
+    play_button_ax = fig.add_axes([0.05, 0.14, BUTTON_WIDTH, BUTTON_HEIGHT])
+    pause_button_ax = fig.add_axes([0.17, 0.14, BUTTON_WIDTH, BUTTON_HEIGHT])
+    reset_button_ax = fig.add_axes([0.29, 0.14, BUTTON_WIDTH, BUTTON_HEIGHT])
 
     play_button = Button(play_button_ax, '播放', **button_props)
     pause_button = Button(pause_button_ax, '暂停', **button_props)
@@ -284,7 +284,7 @@ def create_buttons(fig):
     # 创建频率比预设按钮 - 优化网格布局和间距
     ratio_button_width = RATIO_BUTTON_WIDTH
     ratio_button_height = RATIO_BUTTON_HEIGHT
-    button_margin = 0.018  # 增加按钮间距
+    button_margin = 0.02  # 增加按钮间距
     ratio_buttons = []
     ratio_button_axes = []
 
@@ -304,8 +304,8 @@ def create_buttons(fig):
         ratio_buttons.append(button)
 
     # 添加频率比模式切换按钮 - 调整位置增加间距
-    w1_fixed_ax = fig.add_axes([0.07, 0.42, RATIO_MODE_WIDTH, RATIO_MODE_HEIGHT])
-    w2_fixed_ax = fig.add_axes([0.21, 0.42, RATIO_MODE_WIDTH, RATIO_MODE_HEIGHT])
+    w1_fixed_ax = fig.add_axes([0.07, 0.43, RATIO_MODE_WIDTH, RATIO_MODE_HEIGHT])
+    w2_fixed_ax = fig.add_axes([0.21, 0.43, RATIO_MODE_WIDTH, RATIO_MODE_HEIGHT])
 
     w1_fixed_button = Button(w1_fixed_ax, '固定w1', 
                             color='#1E293B' if INITIAL_PARAMS['ratio_mode'] == 'w2' else TRAJECTORY_COLOR, 

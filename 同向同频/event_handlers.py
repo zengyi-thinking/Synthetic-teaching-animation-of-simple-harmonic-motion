@@ -5,10 +5,16 @@ from config import BUTTON_COLOR, BUTTON_ACTIVE_COLOR
 class EventHandlers:
     """处理用户界面的事件"""
     
-    def __init__(self, animation_controller, params_controller):
+    def __init__(self, animation_controller, params_controller, buttons, sliders, phase_buttons):
         """初始化事件处理器"""
         self.animation_controller = animation_controller
         self.params_controller = params_controller
+        self.buttons = buttons
+        self.sliders = sliders
+        self.phase_buttons = phase_buttons
+        
+        # 自动连接事件
+        self.connect_events(buttons, sliders, phase_buttons)
         
     def connect_events(self, buttons, sliders, phase_buttons):
         """连接所有事件处理函数"""
@@ -66,8 +72,8 @@ class EventHandlers:
     
     def _update_play_button_state(self, is_playing):
         """更新播放/暂停按钮的状态"""
-        play_button = self.params_controller.buttons['play']
-        pause_button = self.params_controller.buttons['pause']
+        play_button = self.buttons['play']
+        pause_button = self.buttons['pause']
         
         # 根据是否正在播放设置按钮颜色
         play_button.color = BUTTON_ACTIVE_COLOR if is_playing else BUTTON_COLOR

@@ -13,6 +13,7 @@ from ui_components import (
 )
 from animation import AnimationController
 from event_handlers import EventHandlers
+from params_controller import ParamsController
 
 def main():
     """主程序入口"""
@@ -40,18 +41,17 @@ def main():
     # 存储轨迹点
     trail_points = [[], []]
     
-    # 创建当前参数对象，包含所有初始参数值
-    current_params = INITIAL_PARAMS.copy()
-    current_params['ratio_presets'] = ratio_presets
+    # 创建参数控制器
+    params_controller = ParamsController(sliders, text_elements)
     
     # 创建动画控制器
     animation_controller = AnimationController(
-        fig, lines, current_params, trail_points, text_elements, sliders
+        fig, lines, params_controller, trail_points
     )
     
     # 创建事件处理器
     event_handlers = EventHandlers(
-        animation_controller, buttons, sliders, current_params, trail_points
+        animation_controller, params_controller, buttons, sliders, trail_points
     )
     
     # 在启动时初始化李萨如图形

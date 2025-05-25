@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 import matplotlib.pyplot as plt
 
-# 导入自定义模块
+# 导入各模块
+from config import has_ffmpeg
 from ui_components import (
     create_figure, create_equation_boxes, create_plot_elements,
     create_text_labels, create_sliders, create_buttons, create_phase_buttons
@@ -31,14 +32,15 @@ def main():
     phase_buttons = create_phase_buttons(fig)
     
     # 创建参数控制器
-    params_controller = ParamsController(sliders, buttons, text_elements)
+    params_controller = ParamsController(sliders, text_elements)
     
     # 创建动画控制器
     animation_controller = AnimationController(fig, lines, params_controller)
     
-    # 创建事件处理器并连接事件
-    event_handlers = EventHandlers(animation_controller, params_controller)
-    event_handlers.connect_events(buttons, sliders, phase_buttons)
+    # 创建事件处理器
+    event_handlers = EventHandlers(
+        animation_controller, params_controller, buttons, sliders, phase_buttons
+    )
     
     # 鼠标关闭事件处理
     def on_close(event):

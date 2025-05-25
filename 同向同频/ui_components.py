@@ -93,9 +93,11 @@ def create_control_panels(fig):
         return [rect, highlight_rect, shadow_rect]
     
     panel_elements = []
-    panel_elements.extend(create_panel(0.71, 0.27))  # 波形1区域
-    panel_elements.extend(create_panel(0.37, 0.34))  # 波形2和相位差预设区域
-    panel_elements.extend(create_panel(0.01, 0.36))  # 公共参数和合成波形区域
+    panel_elements.extend(create_panel(0.73, 0.25))   # 波形1区域
+    panel_elements.extend(create_panel(0.54, 0.19))   # 波形2区域
+    panel_elements.extend(create_panel(0.39, 0.15))   # 相位差预设区域（新增）
+    panel_elements.extend(create_panel(0.20, 0.19))   # 公共参数区域
+    panel_elements.extend(create_panel(0.01, 0.19))   # 合成波形区域
     
     fig.patches.extend(panel_elements)
 
@@ -130,49 +132,49 @@ def create_plot_elements(axes):
 def create_text_labels(fig):
     """创建文本标签"""
     # ========= 波形1部分 =========
-    wave1_equation_text = fig.text(0.15, 0.94, 'x1 = A1*sin(ωt + φ1)', ha='center', **VALUE_FONT1)
-    fig.text(0.15, 0.90, '波形1', ha='center', **TITLE_FONT)
-    fig.text(0.05, 0.86, '振幅1:', **LABEL_FONT)
-    fig.text(0.05, 0.80, '相位1:', **LABEL_FONT)
+    wave1_equation_text = fig.text(0.15, 0.95, 'x1 = A1*sin(ωt + φ1)', ha='center', **VALUE_FONT1)
+    fig.text(0.15, 0.91, '波形1', ha='center', **TITLE_FONT)
+    fig.text(0.05, 0.87, '振幅1:', **LABEL_FONT)
+    fig.text(0.05, 0.81, '相位1:', **LABEL_FONT)
     
     # 波形1的值
-    text_A1 = fig.text(0.22, 0.86, f"{INITIAL_PARAMS['A1']:.1f}", **VALUE_FONT1)
-    text_p1 = fig.text(0.22, 0.80, f"{INITIAL_PARAMS['phi1']:.2f}", **VALUE_FONT1)
+    text_A1 = fig.text(0.22, 0.87, f"{INITIAL_PARAMS['A1']:.1f}", **VALUE_FONT1)
+    text_p1 = fig.text(0.22, 0.81, f"{INITIAL_PARAMS['phi1']:.2f}", **VALUE_FONT1)
     
     # ========= 波形2部分 =========
-    wave2_equation_text = fig.text(0.15, 0.67, 'x2 = A2*sin(ωt + φ2)', ha='center', **VALUE_FONT2)
-    fig.text(0.15, 0.63, '波形2', ha='center', **TITLE_FONT)
-    fig.text(0.05, 0.59, '振幅2:', **LABEL_FONT)
-    fig.text(0.05, 0.53, '相位2:', **LABEL_FONT)
+    wave2_equation_text = fig.text(0.15, 0.71, 'x2 = A2*sin(ωt + φ2)', ha='center', **VALUE_FONT2)
+    fig.text(0.15, 0.67, '波形2', ha='center', **TITLE_FONT)
+    fig.text(0.05, 0.63, '振幅2:', **LABEL_FONT)
+    fig.text(0.05, 0.57, '相位2:', **LABEL_FONT)
     
     # 波形2的值
-    text_A2 = fig.text(0.22, 0.59, f"{INITIAL_PARAMS['A2']:.1f}", **VALUE_FONT2)
-    text_p2 = fig.text(0.22, 0.53, f"{INITIAL_PARAMS['phi2']:.2f}", **VALUE_FONT2)
+    text_A2 = fig.text(0.22, 0.63, f"{INITIAL_PARAMS['A2']:.1f}", **VALUE_FONT2)
+    text_p2 = fig.text(0.22, 0.57, f"{INITIAL_PARAMS['phi2']:.2f}", **VALUE_FONT2)
     
     # ========= 相位差预设部分 =========
-    fig.text(0.15, 0.52, '相位差预设', ha='center', **TITLE_FONT)
+    fig.text(0.15, 0.51, '相位差预设', ha='center', **TITLE_FONT)
     
     # ========= 公共参数部分 =========
-    fig.text(0.15, 0.33, '公共参数', ha='center', **TITLE_FONT)
-    fig.text(0.05, 0.29, '频率ω:', **LABEL_FONT)
-    text_omega = fig.text(0.22, 0.29, f"{INITIAL_PARAMS['omega']:.1f}", **PHASE_FONT)
+    fig.text(0.15, 0.36, '公共参数', ha='center', **TITLE_FONT)
+    fig.text(0.05, 0.32, '频率ω:', **LABEL_FONT)
+    text_omega = fig.text(0.22, 0.32, f"{INITIAL_PARAMS['omega']:.1f}", **PHASE_FONT)
     
     # ========= 合成波形部分 =========
-    wave3_equation_text = fig.text(0.15, 0.24, 'x = A*sin(ωt + φ)', ha='center', **VALUE_FONT3)
-    fig.text(0.15, 0.20, '合成波形', ha='center', **TITLE_FONT)
-    fig.text(0.05, 0.16, '合成振幅 A:', **LABEL_FONT)
-    fig.text(0.05, 0.12, '合成相位 φ:', **LABEL_FONT)
-    fig.text(0.05, 0.08, '相位差 Δφ:', **LABEL_FONT)
+    wave3_equation_text = fig.text(0.15, 0.17, 'x = A*sin(ωt + φ)', ha='center', **VALUE_FONT3)
+    fig.text(0.15, 0.14, '合成波形', ha='center', **TITLE_FONT)
+    fig.text(0.05, 0.11, '合成振幅 A:', **LABEL_FONT)
+    fig.text(0.05, 0.08, '合成相位 φ:', **LABEL_FONT)
+    fig.text(0.05, 0.05, '相位差 Δφ:', **LABEL_FONT)
     
     # 合成波参数的显示值
-    text_A = fig.text(0.22, 0.16, "2.0", **VALUE_FONT3)
-    text_phi = fig.text(0.22, 0.12, "0.0", **VALUE_FONT3)
-    text_delta_phi = fig.text(0.22, 0.08, "0.0", **PHASE_FONT)
+    text_A = fig.text(0.22, 0.11, "2.0", **VALUE_FONT3)
+    text_phi = fig.text(0.22, 0.08, "0.0", **VALUE_FONT3)
+    text_delta_phi = fig.text(0.22, 0.05, "0.0", **PHASE_FONT)
     
     # ========= 速度控制部分 =========
-    fig.text(0.15, 0.04, '速度控制', ha='center', color=PHASE_DIFF_COLOR, fontsize=14, fontweight='bold')
+    fig.text(0.15, 0.02, '速度控制', ha='center', color=PHASE_DIFF_COLOR, fontsize=12, fontweight='bold')
     text_speed = fig.text(0.22, 0.01, f"{INITIAL_PARAMS['speed']:.1f}x", **PHASE_FONT)
-    fig.text(0.05, 0.01, '速度:', **LABEL_FONT)
+    fig.text(0.07, 0.01, '速度:', **LABEL_FONT)
     
     # 返回需要更新的文本对象
     text_elements = {
@@ -195,7 +197,7 @@ def create_text_labels(fig):
 def create_sliders(fig):
     """创建滑块控件"""
     # 振幅1滑块
-    amp1_slider_ax = plt.axes([0.08, 0.84, SLIDER_WIDTH, 0.02], facecolor=SLIDER_AX_COLOR)
+    amp1_slider_ax = plt.axes([0.08, 0.85, SLIDER_WIDTH, 0.02], facecolor=SLIDER_AX_COLOR)
     amp1_slider = Slider(
         amp1_slider_ax, '', 0.0, 2.0,
         valinit=INITIAL_PARAMS['A1'], valfmt='%.1f',
@@ -204,7 +206,7 @@ def create_sliders(fig):
     amp1_slider.valtext.set_visible(False)
     
     # 相位1滑块
-    phase1_slider_ax = plt.axes([0.08, 0.78, SLIDER_WIDTH, 0.02], facecolor=SLIDER_AX_COLOR)
+    phase1_slider_ax = plt.axes([0.08, 0.79, SLIDER_WIDTH, 0.02], facecolor=SLIDER_AX_COLOR)
     phase1_slider = Slider(
         phase1_slider_ax, '', -np.pi, np.pi,
         valinit=INITIAL_PARAMS['phi1'], valfmt='%.1f',
@@ -213,7 +215,7 @@ def create_sliders(fig):
     phase1_slider.valtext.set_visible(False)
     
     # 振幅2滑块
-    amp2_slider_ax = plt.axes([0.08, 0.57, SLIDER_WIDTH, 0.02], facecolor=SLIDER_AX_COLOR)
+    amp2_slider_ax = plt.axes([0.08, 0.61, SLIDER_WIDTH, 0.02], facecolor=SLIDER_AX_COLOR)
     amp2_slider = Slider(
         amp2_slider_ax, '', 0.0, 2.0,
         valinit=INITIAL_PARAMS['A2'], valfmt='%.1f',
@@ -222,7 +224,7 @@ def create_sliders(fig):
     amp2_slider.valtext.set_visible(False)
     
     # 相位2滑块
-    phase2_slider_ax = plt.axes([0.08, 0.51, SLIDER_WIDTH, 0.02], facecolor=SLIDER_AX_COLOR)
+    phase2_slider_ax = plt.axes([0.08, 0.55, SLIDER_WIDTH, 0.02], facecolor=SLIDER_AX_COLOR)
     phase2_slider = Slider(
         phase2_slider_ax, '', -np.pi, np.pi,
         valinit=INITIAL_PARAMS['phi2'], valfmt='%.1f',
@@ -231,7 +233,7 @@ def create_sliders(fig):
     phase2_slider.valtext.set_visible(False)
     
     # 频率滑块
-    omega_slider_ax = plt.axes([0.08, 0.27, SLIDER_WIDTH, 0.02], facecolor=SLIDER_AX_COLOR)
+    omega_slider_ax = plt.axes([0.08, 0.30, SLIDER_WIDTH, 0.02], facecolor=SLIDER_AX_COLOR)
     omega_slider = Slider(
         omega_slider_ax, '', 0.1, 3.0,
         valinit=INITIAL_PARAMS['omega'], valfmt='%.1f',
@@ -240,7 +242,7 @@ def create_sliders(fig):
     omega_slider.valtext.set_visible(False)
     
     # 速度控制滑块
-    speed_slider_ax = plt.axes([0.08, 0.02, SLIDER_WIDTH, 0.02], facecolor=SLIDER_AX_COLOR)
+    speed_slider_ax = plt.axes([0.08, 0.01, SLIDER_WIDTH, 0.02], facecolor=SLIDER_AX_COLOR)
     speed_slider = Slider(
         speed_slider_ax, '', 0.1, 3.0,
         valinit=INITIAL_PARAMS['speed'], valfmt='%.1fx',
@@ -262,9 +264,9 @@ def create_sliders(fig):
 def create_buttons(fig):
     """创建按钮控件"""
     # 创建按钮区域
-    button_ax_play = plt.axes([0.08, 0.37, 0.07, 0.04])
-    button_ax_pause = plt.axes([0.17, 0.37, 0.07, 0.04])
-    button_ax_reset = plt.axes([0.12, 0.42, 0.09, 0.04])
+    button_ax_play = plt.axes([0.08, 0.22, 0.07, 0.04])
+    button_ax_pause = plt.axes([0.17, 0.22, 0.07, 0.04])
+    button_ax_reset = plt.axes([0.12, 0.26, 0.09, 0.04])
     
     # 创建按钮，确保使用fontproperties支持中文
     button_play = Button(button_ax_play, '▶', color=BUTTON_COLOR, hovercolor=BUTTON_HOVER_COLOR)
@@ -286,11 +288,11 @@ def create_buttons(fig):
 def create_phase_buttons(fig):
     """创建相位差预设按钮"""
     # 参数设置
-    row1_y = 0.48  # 第一行按钮位置
-    row2_y = 0.43  # 第二行按钮位置，与第一行有足够间距
-    button_width = 0.06  # 按钮宽度
+    row1_y = 0.47  # 第一行按钮位置
+    row2_y = 0.42  # 第二行按钮位置，与第一行有足够间距
+    button_width = 0.055  # 按钮宽度
     button_height = 0.03  # 按钮高度
-    button_spacing = 0.03  # 按钮之间的间距
+    button_spacing = 0.026  # 按钮之间的间距
     
     # 定义每个按钮的位置
     button_positions = [
