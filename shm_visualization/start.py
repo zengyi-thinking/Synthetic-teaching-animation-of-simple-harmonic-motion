@@ -266,6 +266,9 @@ def main():
     # 只有在直接运行此模块时才执行事件循环
     if __name__ == "__main__":
         sys.exit(app.exec())
+    
+    # 返回启动器对象
+    return launcher
 
 # 在文件最后添加主程序执行入口点
 if __name__ == "__main__":

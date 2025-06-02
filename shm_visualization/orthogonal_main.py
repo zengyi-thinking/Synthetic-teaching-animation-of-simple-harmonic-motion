@@ -5,11 +5,11 @@
 
 import sys
 import numpy as np
-from PyQt6.QtWidgets import QApplication, QMainWindow, QSplitter, QHBoxLayout, QWidget
+from PyQt6.QtWidgets import QApplication, QMainWindow, QSplitter, QHBoxLayout, QWidget, QPushButton
 from PyQt6.QtCore import Qt, pyqtSlot
 from PyQt6.QtGui import QFont
 
-from ui_framework import WavePanel, LissajousPanel, ControlPanel, COLORS, get_app_instance
+from ui_framework import WavePanel, LissajousPanel, ControlPanel, COLORS, get_app_instance, AnimatedButton
 from orthogonal_animation import OrthogonalAnimationController
 from params_controller import ParamsController
 
@@ -72,18 +72,22 @@ class OrthogonalHarmonicWindow(QMainWindow):
         # 创建X方向波形面板
         self.x_wave_panel = WavePanel("X方向振动", COLORS['accent1'])
         self.x_wave_panel.set_formula("x = A₁sin(ω₁t + φ₁)")
-        self.x_wave_panel.canvas.axes.set_xlim(0, 10)
+        self.x_wave_panel.canvas.axes.set_xlim(-5, 5)  # 修改为中心是y轴
         self.x_wave_panel.canvas.axes.set_ylim(-1.2, 1.2)
         self.x_wave_panel.canvas.axes.set_xlabel('时间 (s)', color=COLORS['text'])
         self.x_wave_panel.canvas.axes.set_ylabel('X振幅', color=COLORS['text'])
+        # 绘制y轴（加粗显示）
+        self.x_wave_panel.canvas.axes.axvline(x=0, color=COLORS['text'], linestyle='-', linewidth=2, alpha=0.7)
         
         # 创建Y方向波形面板
         self.y_wave_panel = WavePanel("Y方向振动", COLORS['accent2'])
         self.y_wave_panel.set_formula("y = A₂sin(ω₂t + φ₂)")
-        self.y_wave_panel.canvas.axes.set_xlim(0, 10)
+        self.y_wave_panel.canvas.axes.set_xlim(-5, 5)  # 修改为中心是y轴
         self.y_wave_panel.canvas.axes.set_ylim(-1.2, 1.2)
         self.y_wave_panel.canvas.axes.set_xlabel('时间 (s)', color=COLORS['text'])
         self.y_wave_panel.canvas.axes.set_ylabel('Y振幅', color=COLORS['text'])
+        # 绘制y轴（加粗显示）
+        self.y_wave_panel.canvas.axes.axvline(x=0, color=COLORS['text'], linestyle='-', linewidth=2, alpha=0.7)
         
         vertical_splitter.addWidget(self.x_wave_panel)
         vertical_splitter.addWidget(self.y_wave_panel)
@@ -93,6 +97,12 @@ class OrthogonalHarmonicWindow(QMainWindow):
         self.lissajous_panel.set_ratio("ω₂:ω₁ = 2:1")
         self.lissajous_panel.canvas.axes.set_xlim(-1.2, 1.2)
         self.lissajous_panel.canvas.axes.set_ylim(-1.2, 1.2)
+        
+        # 添加坐标轴
+        self.lissajous_panel.canvas.axes.axhline(y=0, color=COLORS['text'], linestyle='-', alpha=0.5)
+        self.lissajous_panel.canvas.axes.axvline(x=0, color=COLORS['text'], linestyle='-', alpha=0.5)
+        self.lissajous_panel.canvas.axes.set_xlabel('X振幅', color=COLORS['text'], fontfamily='SimHei')
+        self.lissajous_panel.canvas.axes.set_ylabel('Y振幅', color=COLORS['text'], fontfamily='SimHei')
         
         # 添加到布局
         plots_layout.addWidget(vertical_splitter, 1)
@@ -110,6 +120,21 @@ class OrthogonalHarmonicWindow(QMainWindow):
         """)
         
         main_layout.addWidget(splitter)
+        
+        # 添加退出按钮
+        # 创建退出按钮
+        self.exit_btn = AnimatedButton("退出", COLORS['accent5'])
+        self.exit_btn.clicked.connect(self.close)
+        self.exit_btn.setFixedSize(100, 40)
+        self.exit_btn.setStyleSheet(f"""
+            font-weight: bold; 
+            font-size: 14px;
+            border: none;
+            border-radius: 5px;
+        """)
+        
+        # 将退出按钮添加到控制面板的底部
+        self.control_panel.layout().addWidget(self.exit_btn)
     
     def connect_signals(self):
         """连接信号和槽"""
@@ -144,36 +169,85 @@ class OrthogonalHarmonicWindow(QMainWindow):
     @pyqtSlot()
     def update_plots(self):
         """更新所有图表"""
+        t = self.animation_controller.t
+        x_data = self.animation_controller.x_data
+        y_data = self.animation_controller.y_data
+        
+        # 获取当前时间和李萨如坐标点
+        current_t = self.animation_controller.time_counter
+        current_x = self.animation_controller.current_x
+        current_y = self.animation_controller.current_y
+        
+        # 计算新的t值，使波形在-5到5范围内显示
+        new_t = t - 5  # 将0-10映射到-5到5
+        
+        # 查找最接近纵轴(x=0)的点索引
+        zero_index = np.argmin(np.abs(new_t))
+        
+        # 确保使用波形图上的实际交点值
+        if len(x_data) > 0 and zero_index < len(x_data):
+            x_at_zero = x_data[zero_index]
+        else:
+            x_at_zero = current_x
+            
+        if len(y_data) > 0 and zero_index < len(y_data):
+            y_at_zero = y_data[zero_index]
+        else:
+            y_at_zero = current_y
+        
+        # 确保动画控制器中的当前点与波形上的交点一致
+        self.animation_controller.current_x = x_at_zero
+        self.animation_controller.current_y = y_at_zero
+        
+        # 添加当前点到轨迹
+        params = self.params_controller.get_params()
+        max_trail_length = int(params.get('trail_length', 100))
+        
+        # 只有在动画播放状态才添加轨迹点
+        if not self.animation_controller.is_paused:
+            self.animation_controller.trail_points[0].append(x_at_zero)
+            self.animation_controller.trail_points[1].append(y_at_zero)
+            
+            # 裁剪轨迹长度
+            if len(self.animation_controller.trail_points[0]) > max_trail_length:
+                self.animation_controller.trail_points[0] = self.animation_controller.trail_points[0][-max_trail_length:]
+                self.animation_controller.trail_points[1] = self.animation_controller.trail_points[1][-max_trail_length:]
+        
         # 更新X方向波形
         self.x_wave_panel.canvas.axes.clear()
-        self.x_wave_panel.canvas.axes.set_xlim(0, 10)
+        self.x_wave_panel.canvas.axes.set_xlim(-5, 5)
         self.x_wave_panel.canvas.axes.set_ylim(-1.2, 1.2)
         self.x_wave_panel.canvas.axes.set_xlabel('时间 (s)', color=COLORS['text'], fontfamily='SimHei')
         self.x_wave_panel.canvas.axes.set_ylabel('X振幅', color=COLORS['text'], fontfamily='SimHei')
         self.x_wave_panel.canvas.axes.grid(True, color=COLORS['grid'], linestyle='-', alpha=0.3)
         
-        t = self.animation_controller.t
-        if len(self.animation_controller.x_data) > 0:
-            self.x_wave_panel.canvas.axes.plot(t, self.animation_controller.x_data, color=COLORS['accent1'], linewidth=2.0)
-            current_t_index = int(len(t) * (self.animation_controller.time_counter % 10) / 10)
-            if current_t_index < len(t):
-                self.x_wave_panel.canvas.axes.scatter(t[current_t_index], self.animation_controller.x_data[current_t_index], 
-                                               color=COLORS['accent4'], s=80, zorder=3)
+        # 绘制y轴
+        self.x_wave_panel.canvas.axes.axvline(x=0, color=COLORS['text'], linestyle='-', linewidth=1.5, alpha=0.7)
+        
+        # 绘制X方向波形
+        if len(x_data) > 0:
+            self.x_wave_panel.canvas.axes.plot(new_t, x_data, color=COLORS['accent1'], linewidth=2.0)
+            
+            # 在y轴处显示当前点 - 使用实际波形数据上的交点
+            self.x_wave_panel.canvas.axes.scatter([0], [x_at_zero], color=COLORS['accent4'], s=100, zorder=3)
         
         # 更新Y方向波形
         self.y_wave_panel.canvas.axes.clear()
-        self.y_wave_panel.canvas.axes.set_xlim(0, 10)
+        self.y_wave_panel.canvas.axes.set_xlim(-5, 5)
         self.y_wave_panel.canvas.axes.set_ylim(-1.2, 1.2)
         self.y_wave_panel.canvas.axes.set_xlabel('时间 (s)', color=COLORS['text'], fontfamily='SimHei')
         self.y_wave_panel.canvas.axes.set_ylabel('Y振幅', color=COLORS['text'], fontfamily='SimHei')
         self.y_wave_panel.canvas.axes.grid(True, color=COLORS['grid'], linestyle='-', alpha=0.3)
         
-        if len(self.animation_controller.y_data) > 0:
-            self.y_wave_panel.canvas.axes.plot(t, self.animation_controller.y_data, color=COLORS['accent2'], linewidth=2.0)
-            current_t_index = int(len(t) * (self.animation_controller.time_counter % 10) / 10)
-            if current_t_index < len(t):
-                self.y_wave_panel.canvas.axes.scatter(t[current_t_index], self.animation_controller.y_data[current_t_index], 
-                                               color=COLORS['accent4'], s=80, zorder=3)
+        # 绘制y轴
+        self.y_wave_panel.canvas.axes.axvline(x=0, color=COLORS['text'], linestyle='-', linewidth=1.5, alpha=0.7)
+        
+        # 绘制Y方向波形
+        if len(y_data) > 0:
+            self.y_wave_panel.canvas.axes.plot(new_t, y_data, color=COLORS['accent2'], linewidth=2.0)
+            
+            # 在y轴处显示当前点 - 使用实际波形数据上的交点
+            self.y_wave_panel.canvas.axes.scatter([0], [y_at_zero], color=COLORS['accent4'], s=100, zorder=3)
         
         # 更新李萨如图形
         self.lissajous_panel.canvas.axes.clear()
@@ -182,26 +256,44 @@ class OrthogonalHarmonicWindow(QMainWindow):
         self.lissajous_panel.canvas.axes.set_xlabel('X振幅', color=COLORS['text'], fontfamily='SimHei')
         self.lissajous_panel.canvas.axes.set_ylabel('Y振幅', color=COLORS['text'], fontfamily='SimHei')
         self.lissajous_panel.canvas.axes.grid(True, color=COLORS['grid'], linestyle='-', alpha=0.3)
-        self.lissajous_panel.canvas.axes.set_aspect('equal')
         
-        # 绘制完整李萨如图形
-        if len(self.animation_controller.lissajous_x) > 0:
-            self.lissajous_panel.canvas.axes.plot(self.animation_controller.lissajous_x, 
-                                           self.animation_controller.lissajous_y, 
-                                           color=COLORS['accent3'], linewidth=1.5, alpha=0.5)
+        # 绘制坐标轴
+        self.lissajous_panel.canvas.axes.axhline(y=0, color=COLORS['text'], linestyle='-', alpha=0.5)
+        self.lissajous_panel.canvas.axes.axvline(x=0, color=COLORS['text'], linestyle='-', alpha=0.5)
         
-        # 绘制轨迹
-        if len(self.animation_controller.trail_points[0]) > 0:
-            self.lissajous_panel.canvas.axes.plot(self.animation_controller.trail_points[0], 
-                                           self.animation_controller.trail_points[1], 
-                                           color=COLORS['accent5'], linewidth=2.0)
+        # 绘制李萨如图形轨迹 - 静态曲线
+        lissajous_x = self.animation_controller.lissajous_x
+        lissajous_y = self.animation_controller.lissajous_y
         
-        # 绘制当前点
-        self.lissajous_panel.canvas.axes.scatter([self.animation_controller.current_x], 
-                                          [self.animation_controller.current_y], 
-                                          color=COLORS['accent4'], s=100, zorder=3)
+        if len(lissajous_x) > 0 and len(lissajous_y) > 0:
+            self.lissajous_panel.canvas.axes.plot(lissajous_x, lissajous_y, color=COLORS['accent3'], alpha=0.3, linewidth=1.0)
         
-        # 刷新画布
+        # 绘制动态轨迹
+        trail_x = self.animation_controller.trail_points[0]
+        trail_y = self.animation_controller.trail_points[1]
+        
+        if len(trail_x) > 0 and len(trail_y) > 0:
+            # 绘制完整轨迹
+            self.lissajous_panel.canvas.axes.plot(trail_x, trail_y, color=COLORS['accent5'], alpha=0.7, linewidth=1.5)
+            
+            # 让最新部分的轨迹更亮
+            if len(trail_x) > 5:
+                self.lissajous_panel.canvas.axes.plot(
+                    trail_x[-5:], 
+                    trail_y[-5:], 
+                    color=COLORS['accent5'], 
+                    alpha=1.0, 
+                    linewidth=2.0
+                )
+        
+        # 绘制当前点 - 使用波形与y轴的交点值
+        self.lissajous_panel.canvas.axes.scatter([x_at_zero], [y_at_zero], color=COLORS['accent4'], s=120, zorder=4, edgecolor='white', linewidth=1)
+        
+        # 绘制虚线指示当前点的坐标
+        self.lissajous_panel.canvas.axes.plot([x_at_zero, x_at_zero], [0, y_at_zero], 'b--', color=COLORS['accent1'], alpha=0.7, linewidth=1)
+        self.lissajous_panel.canvas.axes.plot([0, x_at_zero], [y_at_zero, y_at_zero], 'b--', color=COLORS['accent2'], alpha=0.7, linewidth=1)
+        
+        # 刷新所有画布
         self.x_wave_panel.canvas.draw()
         self.y_wave_panel.canvas.draw()
         self.lissajous_panel.canvas.draw()
@@ -235,6 +327,9 @@ class OrthogonalHarmonicWindow(QMainWindow):
             else:
                 button.set_background_color(COLORS['panel'])
         
+        # 清空轨迹数据，避免出现不必要的连线
+        self.animation_controller.trail_points = [[], []]
+        
         # 调整频率
         new_w1, new_w2 = self.animation_controller.adjust_frequency_for_ratio(ratio_key)
         
@@ -260,6 +355,7 @@ class OrthogonalHarmonicWindow(QMainWindow):
         self.animation_controller.play()
         self.control_panel.play_btn.set_active(True)
         self.control_panel.pause_btn.set_active(False)
+        print("动画播放中...")  # 添加调试输出
     
     @pyqtSlot()
     def on_pause_clicked(self):
@@ -267,6 +363,7 @@ class OrthogonalHarmonicWindow(QMainWindow):
         self.animation_controller.pause()
         self.control_panel.play_btn.set_active(False)
         self.control_panel.pause_btn.set_active(True)
+        print("动画已暂停")  # 添加调试输出
     
     @pyqtSlot()
     def on_reset_clicked(self):
@@ -295,6 +392,9 @@ class OrthogonalHarmonicWindow(QMainWindow):
     def on_ratio_button_clicked(self, ratio_key):
         """频率比按钮点击事件"""
         print(f"点击频率比按钮: {ratio_key}")
+        
+        # 清空轨迹数据，避免出现不必要的连线
+        self.animation_controller.trail_points = [[], []]
         
         # 更新所有按钮状态
         for key, button in self.control_panel.ratio_buttons.items():

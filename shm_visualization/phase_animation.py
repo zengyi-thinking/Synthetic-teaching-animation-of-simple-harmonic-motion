@@ -39,13 +39,25 @@ class PhaseAnimationController(QObject):
         self.composite_x = 0
         self.composite_y = 0
         
-        # 时间数据
-        self.t = np.linspace(0, 10, 500)
+        # 时间数据 - 优化采样点数量以提高性能
+        self.t = np.linspace(0, 10, 300)  # 减少采样点，原来是400
         
-        # 初始化动画定时器
+        # 初始化动画定时器 - 大幅提高帧率
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_animation)
-        self.timer.setInterval(20)  # 50 FPS
+        self.timer.setInterval(8)  # 约125 FPS，原来是16ms (60 FPS)
+        
+        # 添加性能优化变量
+        self._last_params = {}
+        self._needs_full_recalculation = True
+        self._next_frame_data = None
+        self._use_double_buffering = True
+        
+        # 帧率监控
+        self._frame_count = 0
+        self._last_fps_time = 0
+        self._current_fps = 0
+        self._monitor_fps = False
     
     def initialize_data(self):
         """初始化数据并计算初始波形"""
@@ -54,56 +66,120 @@ class PhaseAnimationController(QObject):
         self.params_controller.set_param('omega2', params['omega1'])
         self.calculate_waves(0)
         self.calculate_phasors(0)
+        self._needs_full_recalculation = False
     
     def calculate_waves(self, t_offset):
         """计算各个波形"""
         params = self.params_controller.get_params()
         
+        # 使用预计算的数据以提高性能
+        if not self._needs_full_recalculation and self._check_if_params_unchanged(params) and self._next_frame_data is not None:
+            self.wave1_data, self.wave2_data, self.composite_data = self._next_frame_data
+            self._next_frame_data = None
+            return
+        
         # 确保两个波形频率相同
         omega = params['omega1']
         
-        # 波形移动速度因子 - 更慢的移动使动画更清晰
+        # 波形移动速度因子
         move_speed = 0.3
         
-        # 计算波形移动的偏移量 - 确保在视窗内循环
+        # 计算波形移动的偏移量，确保在视窗内循环
         wave_offset = (t_offset * move_speed) % 10
         
         # 为了确保波形从左向右移动，我们需要减去这个偏移量
+        # 使用-5到5的范围，与PhaseCompositePanel中的设置匹配
         t_array = self.t - wave_offset
         
-        # 第一个简谐振动 - 使波形随时间从左向右移动
+        # 使用向量化操作一次性计算所有波形，提高性能
         self.wave1_data = params['A1'] * np.sin(omega * t_array + params['phi1'])
-        
-        # 第二个简谐振动（同频）- 使波形随时间从左向右移动
         self.wave2_data = params['A2'] * np.sin(omega * t_array + params['phi2'])
-        
-        # 合成波
         self.composite_data = self.wave1_data + self.wave2_data
         
+        # 如果使用双缓冲，预计算下一帧
+        if self._use_double_buffering:
+            self._precompute_next_frame(t_offset + 0.008 * params['speed'])
+            
+        # 标记已完成全面重新计算
+        self._needs_full_recalculation = False
+        
+        # 更新缓存的参数
+        self._update_cached_params(params)
+        
+        # 监控帧率
+        if self._monitor_fps:
+            self._frame_count += 1
+            current_time = time.time()
+            elapsed = current_time - self._last_fps_time
+            if elapsed >= 1.0:
+                self._current_fps = self._frame_count / elapsed
+                self._frame_count = 0
+                self._last_fps_time = current_time
+                print(f"相位动画FPS: {self._current_fps:.1f}")
+            
+    def _precompute_next_frame(self, next_t_offset):
+        """预计算下一帧数据，提高性能"""
+        params = self.params_controller.get_params()
+        omega = params['omega1']
+        
+        # 计算下一帧波形移动的偏移量
+        move_speed = 0.3
+        next_wave_offset = (next_t_offset * move_speed) % 10
+        next_t_array = self.t - next_wave_offset
+        
+        # 预计算下一帧的波形数据
+        next_wave1 = params['A1'] * np.sin(omega * next_t_array + params['phi1'])
+        next_wave2 = params['A2'] * np.sin(omega * next_t_array + params['phi2'])
+        next_composite = next_wave1 + next_wave2
+        
+        # 存储预计算的数据
+        self._next_frame_data = (next_wave1, next_wave2, next_composite)
+    
+    def _check_if_params_unchanged(self, params):
+        """检查关键参数是否变化"""
+        if not self._last_params:
+            return False
+            
+        key_params = ['A1', 'A2', 'omega1', 'omega2', 'phi1', 'phi2', 'speed']
+        for param in key_params:
+            if param not in self._last_params or params[param] != self._last_params[param]:
+                return False
+        return True
+        
+    def _update_cached_params(self, params):
+        """缓存当前参数"""
+        self._last_params = params.copy()
+        
     def calculate_current_position(self, t_offset):
-        """计算当前位置"""
+        """计算当前位置 - 现在是y轴上的位置值"""
         params = self.params_controller.get_params()
         omega = params['omega1']  # 使用相同频率
-        # 合成当前位置
-        pos1 = params['A1'] * np.sin(omega * (-t_offset) + params['phi1'])
-        pos2 = params['A2'] * np.sin(omega * (-t_offset) + params['phi2'])
+        
+        # 计算y轴上的位置（合成波振幅）
+        pos1 = params['A1'] * np.sin(omega * t_offset + params['phi1'])
+        pos2 = params['A2'] * np.sin(omega * t_offset + params['phi2'])
         return pos1 + pos2
     
     def calculate_phasors(self, t_offset):
         """计算相量图中的向量"""
         params = self.params_controller.get_params()
         omega = params['omega1']
-        phase_at_t = omega * (-t_offset)
+        # 修改相位计算方式，使其与calculate_current_position保持一致
+        phase_at_t = omega * t_offset
+        
+        # 使用缓存的三角函数值提高性能
+        sin_phase1 = np.sin(phase_at_t + params['phi1'])
+        cos_phase1 = np.cos(phase_at_t + params['phi1'])
+        sin_phase2 = np.sin(phase_at_t + params['phi2'])
+        cos_phase2 = np.cos(phase_at_t + params['phi2'])
         
         # 第一个相量
-        angle1 = phase_at_t + params['phi1']
-        self.phasor1_x = params['A1'] * np.cos(angle1)
-        self.phasor1_y = params['A1'] * np.sin(angle1)
+        self.phasor1_x = params['A1'] * cos_phase1
+        self.phasor1_y = params['A1'] * sin_phase1
         
         # 第二个相量
-        angle2 = phase_at_t + params['phi2']
-        self.phasor2_x = params['A2'] * np.cos(angle2)
-        self.phasor2_y = params['A2'] * np.sin(angle2)
+        self.phasor2_x = params['A2'] * cos_phase2
+        self.phasor2_y = params['A2'] * sin_phase2
         
         # 合成相量（通过向量相加）
         self.composite_x = self.phasor1_x + self.phasor2_x
@@ -144,22 +220,24 @@ class PhaseAnimationController(QObject):
         
         # 获取当前参数
         params = self.params_controller.get_params()
-        speed = params['speed']
         
-        # 更新时间
-        self.time_counter += dt * speed
+        # 确保两个波形的频率保持一致
+        if params['omega1'] != params['omega2']:
+            self.params_controller.set_param('omega2', params['omega1'])
+            self._needs_full_recalculation = True
+        
+        # 更新时间计数器
+        self.time_counter += dt * params['speed']
         t_offset = self.time_counter
         
-        # 计算各波形
+        # 计算波形和相量
         self.calculate_waves(t_offset)
-        
-        # 计算相量
         self.calculate_phasors(t_offset)
         
-        # 计算当前点的位置
+        # 计算当前位置
         self.current_position = self.calculate_current_position(t_offset)
         
-        # 发出更新信号
+        # 发送更新信号
         self.update_signal.emit()
     
     def play(self):
@@ -167,6 +245,9 @@ class PhaseAnimationController(QObject):
         if self.is_paused:
             self.is_paused = False
             self.last_frame_time = time.time()
+            if self._monitor_fps:
+                self._last_fps_time = time.time()
+                self._frame_count = 0
             self.timer.start()
     
     def pause(self):
@@ -176,15 +257,17 @@ class PhaseAnimationController(QObject):
     
     def reset(self):
         """重置动画"""
-        self.time_counter = 0
-        self.last_frame_time = time.time()
+        # 暂停动画
+        self.pause()
         
-        # 如果动画正在播放，更新一帧以显示初始状态
-        if not self.is_paused:
-            self.update_animation()
-        else:
-            # 计算初始波形
-            self.calculate_waves(0)
-            self.calculate_phasors(0)
-            self.current_position = self.calculate_current_position(0)
-            self.update_signal.emit() 
+        # 重置时间和状态
+        self.time_counter = 0
+        self._needs_full_recalculation = True
+        
+        # 重新计算初始波形和相量
+        self.calculate_waves(0)
+        self.calculate_phasors(0)
+        self.current_position = self.calculate_current_position(0)
+        
+        # 发送更新信号
+        self.update_signal.emit() 

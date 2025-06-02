@@ -26,14 +26,7 @@ class PhasorPanel(QWidget):
         
         # 创建标题标签
         self.title_label = QLabel("相量图")
-        self.title_label.setStyleSheet(f"""
-            color: {COLORS['text']};
-            font-weight: bold;
-            font-size: 14pt;
-            background-color: {COLORS['accent3']};
-            border-radius: 4px;
-            padding: 5px;
-        """)
+        self.title_label.setStyleSheet(f"color: {COLORS['text']}; font-weight: bold; font-size: 14pt; background-color: {COLORS['accent3']}; border-radius: 4px; padding: 5px;")
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
         # 创建画布
@@ -56,15 +49,7 @@ class PhasorPanel(QWidget):
         
         # 创建振幅和相位信息标签
         self.info_label = QLabel("合成振幅: 1.0   合成相位: 0.0")
-        self.info_label.setStyleSheet(f"""
-            color: {COLORS['accent3']};
-            font-weight: bold;
-            font-size: 12pt;
-            background-color: rgba(26, 58, 108, 180);
-            border: 1px solid {COLORS['accent3']};
-            border-radius: 4px;
-            padding: 8px;
-        """)
+        self.info_label.setStyleSheet(f"color: {COLORS['accent3']}; font-weight: bold; font-size: 12pt; background-color: rgba(26, 58, 108, 180); border: 1px solid {COLORS['accent3']}; border-radius: 4px; padding: 8px;")
         self.info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
         layout.addWidget(self.info_label)
@@ -105,9 +90,9 @@ class PhasorPanel(QWidget):
         self.canvas.axes.plot([0, phasor1_x, composite_x], [0, phasor1_y, composite_y], 
                     color=COLORS['accent5'], linestyle='--', alpha=0.7)
         
-        # 添加图例，将其移至右上角并减小大小，确保不遮挡图表内容
+        # 修改图例位置：将图例放置在右上角，以避免遮挡矢量合成
         self.canvas.axes.legend(['单位圆', '波形1', '波形2', '合成波'], 
-                       loc='upper right', framealpha=0.7, fontsize='small', bbox_to_anchor=(1.0, 1.0))
+                       loc='upper right', framealpha=0.7, fontsize='small')
         
         # 刷新画布
         self.canvas.draw()
@@ -128,32 +113,18 @@ class PhaseCompositePanel(QWidget):
         
         # 创建标题标签
         self.title_label = QLabel(title)
-        self.title_label.setStyleSheet(f"""
-            color: {COLORS['text']};
-            font-weight: bold;
-            font-size: 14pt;
-            background-color: {COLORS['accent3']};
-            border-radius: 4px;
-            padding: 5px;
-        """)
+        self.title_label.setStyleSheet(f"color: {COLORS['text']}; font-weight: bold; font-size: 14pt; background-color: {COLORS['accent3']}; border-radius: 4px; padding: 5px;")
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
         # 创建画布
         self.canvas = MatplotlibCanvas(self)
-        self.canvas.axes.set_xlim(0, 10)
+        # 修改x轴范围，使y轴位于中间
+        self.canvas.axes.set_xlim(-5, 5)
         self.canvas.axes.set_ylim(-2.5, 2.5)
         
         # 创建公式显示标签
         self.formula_label = QLabel("y = A₁sin(ωt + φ₁) + A₂sin(ωt + φ₂)")
-        self.formula_label.setStyleSheet(f"""
-            color: {COLORS['accent3']};
-            font-weight: bold;
-            font-size: 12pt;
-            background-color: rgba(26, 58, 108, 180);
-            border: 1px solid {COLORS['accent3']};
-            border-radius: 4px;
-            padding: 8px;
-        """)
+        self.formula_label.setStyleSheet(f"color: {COLORS['accent3']}; font-weight: bold; font-size: 12pt; background-color: rgba(26, 58, 108, 180); border: 1px solid {COLORS['accent3']}; border-radius: 4px; padding: 8px;")
         self.formula_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
         # 添加到布局
@@ -166,28 +137,52 @@ class PhaseCompositePanel(QWidget):
     def update_waves(self, t, wave1, wave2, composite, current_t_index=None):
         """更新波形显示"""
         self.canvas.axes.clear()
-        self.canvas.axes.set_xlim(0, 10)
+        # 修改x轴范围，使y轴位于中间
+        self.canvas.axes.set_xlim(-5, 5)
         self.canvas.axes.set_ylim(-2.5, 2.5)
         self.canvas.axes.set_xlabel('时间 (s)', color=COLORS['text'])
         self.canvas.axes.set_ylabel('振幅', color=COLORS['text'])
         self.canvas.axes.grid(True, color=COLORS['grid'], linestyle='-', alpha=0.3)
         
+        # 计算新的t值，使波形在-5到5范围内显示
+        new_t = t - 5  # 将0-10映射到-5到5
+        
+        # 查找最接近x=0的数据点索引
+        zero_index = np.argmin(np.abs(new_t))
+        
         # 绘制第一个波形
         if len(wave1) > 0:
-            self.canvas.axes.plot(t, wave1, color=COLORS['accent1'], linewidth=1.5, alpha=0.6, label='波形1')
+            self.canvas.axes.plot(new_t, wave1, color=COLORS['accent1'], linewidth=1.5, alpha=0.6, label='波形1')
         
         # 绘制第二个波形
         if len(wave2) > 0:
-            self.canvas.axes.plot(t, wave2, color=COLORS['accent2'], linewidth=1.5, alpha=0.6, label='波形2')
+            self.canvas.axes.plot(new_t, wave2, color=COLORS['accent2'], linewidth=1.5, alpha=0.6, label='波形2')
         
         # 绘制合成波形
         if len(composite) > 0:
-            self.canvas.axes.plot(t, composite, color=COLORS['accent3'], linewidth=2.0, label='合成波')
+            self.canvas.axes.plot(new_t, composite, color=COLORS['accent3'], linewidth=2.0, label='合成波')
         
-        # 绘制当前位置
+        # 绘制y轴（加粗显示）
+        self.canvas.axes.axvline(x=0, color=COLORS['text'], linestyle='-', linewidth=2, alpha=0.7)
+        
+        # 绘制当前位置 - 显示所有波形与y轴的交点
         if current_t_index is not None and current_t_index < len(t) and len(composite) > 0:
-            self.canvas.axes.scatter([t[current_t_index]], [composite[current_t_index]], 
-                               color=COLORS['accent4'], s=80, zorder=3)
+            # 使用波形当前计算得到的x=0处的真实值
+            wave1_y = wave1[zero_index]
+            wave2_y = wave2[zero_index]
+            composite_y = composite[zero_index]
+            
+            # 显示波形1与y轴的交点
+            self.canvas.axes.scatter([0], [wave1_y], 
+                            color=COLORS['accent1'], s=80, zorder=4, edgecolor='white', linewidth=1)
+            
+            # 显示波形2与y轴的交点
+            self.canvas.axes.scatter([0], [wave2_y], 
+                            color=COLORS['accent2'], s=80, zorder=4, edgecolor='white', linewidth=1)
+            
+            # 显示合成波与y轴的交点（略大一些）
+            self.canvas.axes.scatter([0], [composite_y], 
+                            color=COLORS['accent4'], s=120, zorder=5, edgecolor='white', linewidth=1)
         
         # 添加图例
         self.canvas.axes.legend(loc='upper right', framealpha=0.7)
@@ -251,6 +246,12 @@ class PhaseHarmonicWindow(QMainWindow):
         self.control_panel.w1_slider.slider.setEnabled(False)
         self.control_panel.w2_slider.slider.setEnabled(False)
         
+        # 添加频率锁定指示器
+        freq_lock_label = QLabel("频率已锁定: ω1 = ω2 = 1.0")
+        freq_lock_label.setStyleSheet(f"color: {COLORS['text']}; background-color: {COLORS['accent3']}; font-weight: bold; font-size: 12pt; padding: 5px; margin: 5px;")
+        freq_lock_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.control_panel.layout().insertWidget(1, freq_lock_label)
+        
         splitter.addWidget(self.control_panel)
         
         # 创建右侧部分
@@ -273,13 +274,26 @@ class PhaseHarmonicWindow(QMainWindow):
         # 设置分隔器大小策略
         splitter.setSizes([300, 900])
         splitter.setHandleWidth(2)
-        splitter.setStyleSheet(f"""
-            QSplitter::handle {{
-                background-color: {COLORS['border']};
-            }}
-        """)
+        splitter.setStyleSheet(f"QSplitter::handle {{ background-color: {COLORS['border']}; }}")
         
         main_layout.addWidget(splitter)
+        
+        # 添加退出按钮
+        from ui_framework import AnimatedButton
+        
+        # 创建退出按钮
+        self.exit_btn = AnimatedButton("退出", COLORS['accent5'])
+        self.exit_btn.clicked.connect(self.close)
+        self.exit_btn.setFixedSize(100, 40)
+        self.exit_btn.setStyleSheet(f"""
+            font-weight: bold; 
+            font-size: 14px;
+            border: none;
+            border-radius: 5px;
+        """)
+        
+        # 将退出按钮添加到控制面板的底部
+        self.control_panel.layout().addWidget(self.exit_btn)
     
     def connect_signals(self):
         """连接信号和槽"""

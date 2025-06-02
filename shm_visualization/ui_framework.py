@@ -5,7 +5,7 @@
 """
 
 from PyQt6.QtCore import Qt, QPropertyAnimation, QEasingCurve, pyqtProperty, QTimer, QRect
-from PyQt6.QtGui import QColor, QPalette, QFont, QIcon, QLinearGradient, QGradient, QPainter
+from PyQt6.QtGui import QColor, QPalette, QFont, QIcon, QLinearGradient, QGradient, QPainter, QBrush
 from PyQt6.QtWidgets import (
     QMainWindow, QApplication, QWidget, QVBoxLayout, QHBoxLayout, 
     QLabel, QSlider, QPushButton, QGroupBox, QFrame, QGridLayout,
@@ -13,7 +13,16 @@ from PyQt6.QtWidgets import (
 )
 import numpy as np
 import matplotlib
-matplotlib.use('Qt5Agg')
+try:
+    matplotlib.use('Qt5Agg')
+except Exception as e:
+    print(f"设置Matplotlib后端失败: {e}")
+    # 尝试其他后端
+    try:
+        matplotlib.use('Agg')
+        print("使用备用后端Agg")
+    except:
+        print("无法设置Matplotlib后端")
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
@@ -77,12 +86,12 @@ INITIAL_PARAMS = {
     'omega1': 1.0,
     'phi1': 0.0,
     'A2': 1.0,
-    'omega2': 2.0, 
+    'omega2': 1.0,  # 确保初始值为1.0
     'phi2': 0.0,
     'speed': 1.0,
     'trail_length': 100,
     'ratio_mode': 'w2',  # 当频率比改变时，调整哪个频率 ('w1' 或 'w2')
-    'ratio_preset': '1:2'  # 当前预设频率比
+    'ratio_preset': '1:1'  # 确保默认频率比为1:1
 }
 
 # 李萨如图形的常用频率比预设
@@ -292,6 +301,13 @@ class MatplotlibCanvas(FigureCanvas):
         """
         初始化Matplotlib画布
         """
+        # 优化绘图参数，提高性能
+        import matplotlib as mpl
+        mpl.rcParams['path.simplify'] = True  # 简化曲线以减少点数
+        mpl.rcParams['path.simplify_threshold'] = 0.8  # 曲线简化阈值(0~1)
+        mpl.rcParams['agg.path.chunksize'] = 10000  # 分块处理大路径
+        
+        # 创建图形
         self.fig = Figure(figsize=(width, height), dpi=dpi, facecolor=facecolor)
         
         # 创建子图并设置样式
@@ -300,11 +316,18 @@ class MatplotlibCanvas(FigureCanvas):
         self.axes.grid(True, color=COLORS['grid'], linestyle='-', alpha=0.3)
         self.axes.tick_params(axis='both', colors=COLORS['text'])
         
+        # 减少绘图元素的复杂度
+        self.axes.patch.set_alpha(0.8)  # 提高透明度处理效率
+        
         # 设置外观
         for spine in self.axes.spines.values():
             spine.set_color(COLORS['border'])
             spine.set_linewidth(1.5)
+        
+        # 禁用自动缩放以提高性能
+        self.axes.autoscale(enable=False)
             
+        # 初始化基类
         super().__init__(self.fig)
         self.setParent(parent)
         

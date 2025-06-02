@@ -1,0 +1,10 @@
+D:\CodeLearning\Synthetic teaching animation of simple harmonic motion\shm_visualization\beat_animation.py
+D:\CodeLearning\Synthetic teaching animation of simple harmonic motion\shm_visualization\beat_main.py
+D:\CodeLearning\Synthetic teaching animation of simple harmonic motion\shm_visualization\orthogonal_animation.py
+D:\CodeLearning\Synthetic teaching animation of simple harmonic motion\shm_visualization\orthogonal_main.py
+D:\CodeLearning\Synthetic teaching animation of simple harmonic motion\shm_visualization\params_controller.py
+D:\CodeLearning\Synthetic teaching animation of simple harmonic motion\shm_visualization\phase_animation.py
+D:\CodeLearning\Synthetic teaching animation of simple harmonic motion\shm_visualization\phase_main.py
+D:\CodeLearning\Synthetic teaching animation of simple harmonic motion\shm_visualization\start.py
+D:\CodeLearning\Synthetic teaching animation of simple harmonic motion\shm_visualization\ui_framework.py
+D:\CodeLearning\Synthetic teaching animation of simple harmonic motion\shm_visualization\__init__.py

@@ -43,7 +43,7 @@ class BeatWavePanel(QWidget):
         
         # 创建第一个波形画布 - 波形1
         self.canvas1 = MatplotlibCanvas(self)
-        self.canvas1.axes.set_xlim(0, 10)
+        self.canvas1.axes.set_xlim(-5, 5)
         self.canvas1.axes.set_ylim(-1.5, 1.5)
         self.canvas1.axes.set_title("波形1", color=COLORS['accent1'], fontsize=12, fontfamily='SimHei')
         self.canvas1.axes.set_xlabel('时间 (s)', color=COLORS['text'], fontfamily='SimHei')
@@ -52,7 +52,7 @@ class BeatWavePanel(QWidget):
         
         # 创建第二个波形画布 - 波形2
         self.canvas2 = MatplotlibCanvas(self)
-        self.canvas2.axes.set_xlim(0, 10)
+        self.canvas2.axes.set_xlim(-5, 5)
         self.canvas2.axes.set_ylim(-1.5, 1.5)
         self.canvas2.axes.set_title("波形2", color=COLORS['accent2'], fontsize=12, fontfamily='SimHei')
         self.canvas2.axes.set_xlabel('时间 (s)', color=COLORS['text'], fontfamily='SimHei')
@@ -61,7 +61,7 @@ class BeatWavePanel(QWidget):
         
         # 创建第三个波形画布 - 合成波
         self.canvas3 = MatplotlibCanvas(self)
-        self.canvas3.axes.set_xlim(0, 10)
+        self.canvas3.axes.set_xlim(-5, 5)
         self.canvas3.axes.set_ylim(-2.5, 2.5)
         self.canvas3.axes.set_title("合成波", color=COLORS['accent3'], fontsize=12, fontfamily='SimHei')
         self.canvas3.axes.set_xlabel('时间 (s)', color=COLORS['text'], fontfamily='SimHei')
@@ -99,59 +99,92 @@ class BeatWavePanel(QWidget):
     
     def update_waves(self, t, wave1, wave2, composite, envelope_up=None, envelope_down=None, current_t_index=None):
         """更新三个波形图"""
+        # 计算新的t值，使波形在-5到5范围内显示
+        new_t = t - 5  # 将0-10映射到-5到5
+        
+        # 查找最接近x=0的数据点索引
+        zero_index = np.argmin(np.abs(new_t))
+        
+        # 获取波形在y轴上的真实值
+        if len(wave1) > 0 and zero_index < len(wave1):
+            wave1_y = wave1[zero_index]
+        else:
+            wave1_y = 0
+            
+        if len(wave2) > 0 and zero_index < len(wave2):
+            wave2_y = wave2[zero_index]
+        else:
+            wave2_y = 0
+            
+        if len(composite) > 0 and zero_index < len(composite):
+            composite_y = composite[zero_index]
+        else:
+            composite_y = 0
+        
         # 更新第一个波形 - 波形1
         self.canvas1.axes.clear()
-        self.canvas1.axes.set_xlim(0, 10)
+        self.canvas1.axes.set_xlim(-5, 5)
         self.canvas1.axes.set_ylim(-1.5, 1.5)
         self.canvas1.axes.set_title("波形1", color=COLORS['accent1'], fontsize=12, fontfamily='SimHei')
         self.canvas1.axes.set_xlabel('时间 (s)', color=COLORS['text'], fontfamily='SimHei')
         self.canvas1.axes.set_ylabel('振幅', color=COLORS['text'], fontfamily='SimHei')
         self.canvas1.axes.grid(True, color=COLORS['grid'], linestyle='-', alpha=0.3)
         
+        # 绘制y轴（加粗显示）
+        self.canvas1.axes.axvline(x=0, color=COLORS['text'], linestyle='-', linewidth=2, alpha=0.7)
+        
         if len(wave1) > 0:
-            self.canvas1.axes.plot(t, wave1, color=COLORS['accent1'], linewidth=2.0)
-            if current_t_index is not None and current_t_index < len(t):
-                self.canvas1.axes.scatter([t[current_t_index]], [wave1[current_t_index]], 
-                                 color=COLORS['accent4'], s=80, zorder=3)
+            self.canvas1.axes.plot(new_t, wave1, color=COLORS['accent1'], linewidth=2.0)
+            # 在y轴处绘制波形1的交点
+            if current_t_index is not None:
+                self.canvas1.axes.scatter([0], [wave1_y], 
+                                 color=COLORS['accent1'], s=100, zorder=3, edgecolor='white', linewidth=1)
         
         # 更新第二个波形 - 波形2
         self.canvas2.axes.clear()
-        self.canvas2.axes.set_xlim(0, 10)
+        self.canvas2.axes.set_xlim(-5, 5)
         self.canvas2.axes.set_ylim(-1.5, 1.5)
         self.canvas2.axes.set_title("波形2", color=COLORS['accent2'], fontsize=12, fontfamily='SimHei')
         self.canvas2.axes.set_xlabel('时间 (s)', color=COLORS['text'], fontfamily='SimHei')
         self.canvas2.axes.set_ylabel('振幅', color=COLORS['text'], fontfamily='SimHei')
         self.canvas2.axes.grid(True, color=COLORS['grid'], linestyle='-', alpha=0.3)
         
+        # 绘制y轴（加粗显示）
+        self.canvas2.axes.axvline(x=0, color=COLORS['text'], linestyle='-', linewidth=2, alpha=0.7)
+        
         if len(wave2) > 0:
-            self.canvas2.axes.plot(t, wave2, color=COLORS['accent2'], linewidth=2.0)
-            if current_t_index is not None and current_t_index < len(t):
-                self.canvas2.axes.scatter([t[current_t_index]], [wave2[current_t_index]], 
-                                 color=COLORS['accent4'], s=80, zorder=3)
+            self.canvas2.axes.plot(new_t, wave2, color=COLORS['accent2'], linewidth=2.0)
+            # 在y轴处绘制波形2的交点
+            if current_t_index is not None:
+                self.canvas2.axes.scatter([0], [wave2_y], 
+                                 color=COLORS['accent2'], s=100, zorder=3, edgecolor='white', linewidth=1)
         
         # 更新第三个波形 - 合成波
         self.canvas3.axes.clear()
-        self.canvas3.axes.set_xlim(0, 10)
+        self.canvas3.axes.set_xlim(-5, 5)
         self.canvas3.axes.set_ylim(-2.5, 2.5)
         self.canvas3.axes.set_title("合成波", color=COLORS['accent3'], fontsize=12, fontfamily='SimHei')
         self.canvas3.axes.set_xlabel('时间 (s)', color=COLORS['text'], fontfamily='SimHei')
         self.canvas3.axes.set_ylabel('振幅', color=COLORS['text'], fontfamily='SimHei')
         self.canvas3.axes.grid(True, color=COLORS['grid'], linestyle='-', alpha=0.3)
         
+        # 绘制y轴（加粗显示）
+        self.canvas3.axes.axvline(x=0, color=COLORS['text'], linestyle='-', linewidth=2, alpha=0.7)
+        
         if len(composite) > 0:
-            self.canvas3.axes.plot(t, composite, color=COLORS['accent3'], linewidth=2.0)
+            self.canvas3.axes.plot(new_t, composite, color=COLORS['accent3'], linewidth=2.0)
             
             # 绘制包络线
             if envelope_up is not None and len(envelope_up) > 0:
-                self.canvas3.axes.plot(t, envelope_up, color=COLORS['accent5'], linewidth=1.5, linestyle='--')
+                self.canvas3.axes.plot(new_t, envelope_up, color=COLORS['accent5'], linewidth=1.5, linestyle='--')
             
             if envelope_down is not None and len(envelope_down) > 0:
-                self.canvas3.axes.plot(t, envelope_down, color=COLORS['accent5'], linewidth=1.5, linestyle='--')
+                self.canvas3.axes.plot(new_t, envelope_down, color=COLORS['accent5'], linewidth=1.5, linestyle='--')
             
-            # 绘制当前位置
-            if current_t_index is not None and current_t_index < len(t):
-                self.canvas3.axes.scatter([t[current_t_index]], [composite[current_t_index]], 
-                                 color=COLORS['accent4'], s=80, zorder=3)
+            # 在y轴处绘制合成波的交点
+            if current_t_index is not None:
+                self.canvas3.axes.scatter([0], [composite_y], 
+                                 color=COLORS['accent4'], s=120, zorder=3, edgecolor='white', linewidth=1)
         
         # 刷新所有画布
         self.canvas1.draw()
@@ -285,6 +318,23 @@ class BeatHarmonicWindow(QMainWindow):
         """)
         
         main_layout.addWidget(splitter)
+        
+        # 添加退出按钮
+        from ui_framework import AnimatedButton
+        
+        # 创建退出按钮
+        self.exit_btn = AnimatedButton("退出", COLORS['accent5'])
+        self.exit_btn.clicked.connect(self.close)
+        self.exit_btn.setFixedSize(100, 40)
+        self.exit_btn.setStyleSheet(f"""
+            font-weight: bold; 
+            font-size: 14px;
+            border: none;
+            border-radius: 5px;
+        """)
+        
+        # 将退出按钮添加到控制面板的底部
+        self.control_panel.layout().addWidget(self.exit_btn)
     
     def connect_signals(self):
         """连接信号和槽"""
