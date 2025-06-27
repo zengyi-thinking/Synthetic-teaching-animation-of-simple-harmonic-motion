@@ -49,10 +49,10 @@ class OrthogonalAnimationController(QObject):
         self._precomputed_lissajous = False
         self._lissajous_cache = {}
         
-        # 初始化动画定时器
+        # 初始化动画定时器 - 优化流畅度
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_animation)
-        self.timer.setInterval(16)  # 约60 FPS (1000/16)
+        self.timer.setInterval(12)  # 约83 FPS (1000/12) - 提高流畅度
         
         # 帧率监控
         self._frame_count = 0

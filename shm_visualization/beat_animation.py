@@ -15,7 +15,7 @@ class BeatAnimationController(QObject):
     处理两个频率接近的简谐运动合成，展示拍现象
     """
     # 自定义信号，用于通知UI更新
-    update_signal = pyqtSignal()
+    update_signal = pyqtSignal()  # 保持原有信号兼容性
     
     def __init__(self, params_controller):
         super().__init__()
@@ -37,27 +37,32 @@ class BeatAnimationController(QObject):
         # 时间数据 - 减少采样点以优化性能
         self.t = np.linspace(0, 10, 600)  # 减少采样点从1000到600
         
-        # 初始化动画定时器
+        # 初始化动画定时器 - 进一步优化流畅度
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_animation)
-        self.timer.setInterval(8)  # 约125 FPS (1000/8)，提高帧率，原来是14ms
+        self.timer.setInterval(12)  # 约83 FPS (1000/12) - 优化流畅度，减少帧跳跃
         
         # 优化变量，缓存上一次的参数值
         self._last_params = {}
         self._needs_full_recalculation = True
-        
+
         # 预计算帧数据
         self._next_frame_data = None
-        
+
         # 帧率控制
         self._frame_count = 0
         self._last_fps_time = 0
         self._current_fps = 0
-        
+
         # 性能优化
         self._high_performance = True  # 高性能模式
         self._use_double_buffering = True  # 使用双缓冲
         self._log_fps = False  # 是否记录帧率
+
+        # 数学计算缓存
+        self._sin_cache = {}
+        self._cos_cache = {}
+        self._cache_size_limit = 1000
         
         # 安装事件过滤器，以便在应用空闲时进行更新
         self.installEventFilter(self)
@@ -221,28 +226,59 @@ class BeatAnimationController(QObject):
         main_freq = (omega1 + omega2) / 2 / (2 * np.pi)
         
         return beat_freq, beat_period, main_freq
+
+    def _check_if_params_changed(self, current_params):
+        """检查参数是否发生变化"""
+        key_params = ['A1', 'A2', 'omega1', 'omega2', 'phi1', 'phi2', 'trail_length']
+
+        for param in key_params:
+            if param not in self._last_params or self._last_params[param] != current_params[param]:
+                # 更新缓存
+                self._last_params = {k: current_params[k] for k in key_params}
+                return True
+        return False
+
+    def _update_time_dependent_only(self, t_offset):
+        """只更新时间相关的部分，避免完全重绘"""
+        if hasattr(self, 'wave1_data') and hasattr(self, 'wave2_data'):
+            # 只更新当前点的位置，不重新计算整个波形
+            self.current_position = self.calculate_current_position(t_offset)
+
+            # 发送更新信号
+            self.update_signal.emit()
     
     @pyqtSlot()
     def update_animation(self):
-        """更新动画帧"""
+        """更新动画帧 - 优化版本"""
         if self.is_paused:
             return
-        
+
         # 使用高精度计时提高帧率一致性
         current_time = time.time()
         dt = current_time - self.last_frame_time
         self.last_frame_time = current_time
-        
+
+        # 帧率控制：跳过过快的帧
+        if dt < 0.008:  # 限制最高帧率约125 FPS
+            return
+
         # 获取当前参数
         params = self.params_controller.get_params()
         speed = params['speed']
-        
+
+        # 检查参数是否变化，避免不必要的重绘
+        params_changed = self._check_if_params_changed(params)
+
         # 更新时间计数器，控制动画速度
         self.time_counter += dt * speed
         t_offset = self.time_counter
-        
-        # 计算各波形
-        self.calculate_waves(t_offset)
+
+        # 只有在参数变化或时间推进时才重新计算
+        if params_changed or dt > 0.01:
+            self.calculate_waves(t_offset)
+        else:
+            # 使用缓存的数据，只更新时间相关的部分
+            self._update_time_dependent_only(t_offset)
         
         # 计算当前点的位置
         self.current_position = self.calculate_current_position(t_offset)

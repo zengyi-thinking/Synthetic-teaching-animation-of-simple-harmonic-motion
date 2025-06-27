@@ -5,6 +5,7 @@
 
 import sys
 import numpy as np
+import matplotlib.pyplot as plt
 from PyQt6.QtWidgets import QApplication, QMainWindow, QSplitter, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QGroupBox
 from PyQt6.QtCore import Qt, pyqtSlot
 from PyQt6.QtGui import QFont
@@ -56,44 +57,78 @@ class PhasorPanel(QWidget):
         self.setLayout(layout)
     
     def update_phasors(self, phasor1_x, phasor1_y, phasor2_x, phasor2_y, composite_x, composite_y):
-        """更新相量图"""
+        """更新相量图 - 优化版本，解决遮挡问题"""
         self.canvas.axes.clear()
-        
+
         # 重新设置坐标轴属性
         self.canvas.axes.set_xlim(-2.5, 2.5)
         self.canvas.axes.set_ylim(-2.5, 2.5)
-        self.canvas.axes.set_xlabel('实部', color=COLORS['text'])
-        self.canvas.axes.set_ylabel('虚部', color=COLORS['text'])
-        
+        self.canvas.axes.set_xlabel('实部', color=COLORS['text'], fontsize=10)
+        self.canvas.axes.set_ylabel('虚部', color=COLORS['text'], fontsize=10)
+
         # 绘制坐标轴
         self.canvas.axes.axhline(y=0, color=COLORS['text'], linestyle='-', alpha=0.3)
         self.canvas.axes.axvline(x=0, color=COLORS['text'], linestyle='-', alpha=0.3)
-        self.canvas.axes.grid(True, color=COLORS['grid'], linestyle='-', alpha=0.3)
-        
+        self.canvas.axes.grid(True, color=COLORS['grid'], linestyle='-', alpha=0.2)
+
         # 绘制单位圆
-        circle = Circle((0, 0), 1, fill=False, color=COLORS['text'], linestyle='--', alpha=0.5)
+        circle = Circle((0, 0), 1, fill=False, color=COLORS['text'], linestyle='--', alpha=0.4)
         self.canvas.axes.add_patch(circle)
-        
+
         # 绘制第一个相量向量
-        self.canvas.axes.arrow(0, 0, phasor1_x, phasor1_y, head_width=0.1, head_length=0.1, 
-                      fc=COLORS['accent1'], ec=COLORS['accent1'], linewidth=2, zorder=2)
-        
+        self.canvas.axes.arrow(0, 0, phasor1_x, phasor1_y, head_width=0.08, head_length=0.08,
+                      fc=COLORS['accent1'], ec=COLORS['accent1'], linewidth=2.5, zorder=2)
+
         # 绘制第二个相量向量（从原点出发）
-        self.canvas.axes.arrow(0, 0, phasor2_x, phasor2_y, head_width=0.1, head_length=0.1, 
-                      fc=COLORS['accent2'], ec=COLORS['accent2'], linewidth=2, zorder=2)
-        
+        self.canvas.axes.arrow(0, 0, phasor2_x, phasor2_y, head_width=0.08, head_length=0.08,
+                      fc=COLORS['accent2'], ec=COLORS['accent2'], linewidth=2.5, zorder=2)
+
         # 绘制合成相量向量
-        self.canvas.axes.arrow(0, 0, composite_x, composite_y, head_width=0.1, head_length=0.1, 
-                      fc=COLORS['accent3'], ec=COLORS['accent3'], linewidth=3, zorder=3)
-        
-        # 绘制向量相加路径（虚线）
-        self.canvas.axes.plot([0, phasor1_x, composite_x], [0, phasor1_y, composite_y], 
-                    color=COLORS['accent5'], linestyle='--', alpha=0.7)
-        
-        # 修改图例位置：将图例放置在右上角，以避免遮挡矢量合成
-        self.canvas.axes.legend(['单位圆', '波形1', '波形2', '合成波'], 
-                       loc='upper right', framealpha=0.7, fontsize='small')
-        
+        self.canvas.axes.arrow(0, 0, composite_x, composite_y, head_width=0.1, head_length=0.1,
+                      fc=COLORS['accent3'], ec=COLORS['accent3'], linewidth=3.5, zorder=4)
+
+        # 绘制向量相加路径（虚线）- 从第一个向量端点到合成向量端点
+        self.canvas.axes.plot([phasor1_x, composite_x], [phasor1_y, composite_y],
+                    color=COLORS['accent2'], linestyle='--', alpha=0.6, linewidth=1.5, zorder=1)
+
+        # 添加向量标签，避免遮挡
+        # 计算标签位置，避开向量箭头
+        label_offset = 0.15
+
+        # 波形1标签
+        if abs(phasor1_x) > 0.1 or abs(phasor1_y) > 0.1:
+            label1_x = phasor1_x + label_offset * (1 if phasor1_x >= 0 else -1)
+            label1_y = phasor1_y + label_offset * (1 if phasor1_y >= 0 else -1)
+            self.canvas.axes.text(label1_x, label1_y, 'A₁', color=COLORS['accent1'],
+                         fontsize=9, fontweight='bold', ha='center', va='center',
+                         bbox=dict(boxstyle="round,pad=0.2", facecolor='white', alpha=0.8, edgecolor=COLORS['accent1']))
+
+        # 波形2标签
+        if abs(phasor2_x) > 0.1 or abs(phasor2_y) > 0.1:
+            label2_x = phasor2_x + label_offset * (1 if phasor2_x >= 0 else -1)
+            label2_y = phasor2_y + label_offset * (1 if phasor2_y >= 0 else -1)
+            self.canvas.axes.text(label2_x, label2_y, 'A₂', color=COLORS['accent2'],
+                         fontsize=9, fontweight='bold', ha='center', va='center',
+                         bbox=dict(boxstyle="round,pad=0.2", facecolor='white', alpha=0.8, edgecolor=COLORS['accent2']))
+
+        # 合成向量标签
+        if abs(composite_x) > 0.1 or abs(composite_y) > 0.1:
+            label_comp_x = composite_x + label_offset * 1.5 * (1 if composite_x >= 0 else -1)
+            label_comp_y = composite_y + label_offset * 1.5 * (1 if composite_y >= 0 else -1)
+            self.canvas.axes.text(label_comp_x, label_comp_y, 'A合成', color=COLORS['accent3'],
+                         fontsize=9, fontweight='bold', ha='center', va='center',
+                         bbox=dict(boxstyle="round,pad=0.3", facecolor='white', alpha=0.9, edgecolor=COLORS['accent3']))
+
+        # 添加简化的图例，放在左下角避免遮挡
+        legend_elements = [
+            plt.Line2D([0], [0], color=COLORS['accent1'], lw=2, label='波形1'),
+            plt.Line2D([0], [0], color=COLORS['accent2'], lw=2, label='波形2'),
+            plt.Line2D([0], [0], color=COLORS['accent3'], lw=3, label='合成波'),
+            plt.Line2D([0], [0], color=COLORS['accent2'], lw=1, linestyle='--', label='向量和')
+        ]
+        self.canvas.axes.legend(handles=legend_elements, loc='lower left',
+                       framealpha=0.9, fontsize=8, fancybox=True, shadow=True)
+
         # 刷新画布
         self.canvas.draw()
     

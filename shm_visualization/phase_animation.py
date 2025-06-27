@@ -42,22 +42,30 @@ class PhaseAnimationController(QObject):
         # 时间数据 - 优化采样点数量以提高性能
         self.t = np.linspace(0, 10, 300)  # 减少采样点，原来是400
         
-        # 初始化动画定时器 - 大幅提高帧率
+        # 初始化动画定时器 - 优化流畅度
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_animation)
-        self.timer.setInterval(8)  # 约125 FPS，原来是16ms (60 FPS)
+        self.timer.setInterval(10)  # 约100 FPS (1000/10) - 平衡性能和流畅度
         
         # 添加性能优化变量
         self._last_params = {}
         self._needs_full_recalculation = True
         self._next_frame_data = None
         self._use_double_buffering = True
-        
+
         # 帧率监控
         self._frame_count = 0
         self._last_fps_time = 0
         self._current_fps = 0
         self._monitor_fps = False
+
+        # 数学计算优化
+        self._trig_cache = {}
+        self._cache_size_limit = 500
+
+        # 数学计算优化
+        self._trig_cache = {}
+        self._cache_size_limit = 500
     
     def initialize_data(self):
         """初始化数据并计算初始波形"""

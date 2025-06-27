@@ -416,52 +416,67 @@ class BeatHarmonicWindow(QMainWindow):
     def on_slider_changed(self, param_name, value):
         """滑块值变化时的处理"""
         self.params_controller.set_param(param_name, value)
+
+        # 如果是频率参数变化，更新拍频信息显示
+        if param_name in ['omega1', 'omega2']:
+            params = self.params_controller.get_params()
+            self.update_beat_info(params['omega1'], params['omega2'])
     
     @pyqtSlot(str)
     def on_ratio_button_clicked(self, ratio_key):
-        """频率比按钮点击事件处理"""
+        """频率比按钮点击事件处理 - 修复版本"""
         print(f"频率比按钮被点击: {ratio_key}")
-        
+
         # 更新按钮状态
         for key, btn in self.control_panel.ratio_buttons.items():
             if key == ratio_key:
                 btn.set_active(True)
             else:
                 btn.set_active(False)
-        
+
         # 获取参数
         params = self.params_controller.get_params()
-        
+
         # 确保有比率预设
         if 'ratio_presets' not in params:
             from ui_framework import RATIO_PRESETS
             params['ratio_presets'] = RATIO_PRESETS
             self.params_controller.set_param('ratio_presets', RATIO_PRESETS)
-        
+
         # 更新当前比率预设
         self.params_controller.set_param('ratio_preset', ratio_key)
-        
+
         # 获取比率值
         ratio_presets = params['ratio_presets']
         if ratio_key in ratio_presets:
             ratio_values = ratio_presets[ratio_key]
-            
+
             # 确定当前模式 (w1 或 w2)
             ratio_mode = params.get('ratio_mode', 'w2')  # 默认为 w2 模式
-            
-            # 根据模式应用频率比
+
+            # 修复频率比计算逻辑
             if ratio_mode == 'w1':
-                w1_fixed = params['omega2'] * (ratio_values[0] / ratio_values[1])
-                self.params_controller.set_param('omega1', w1_fixed)
-                print(f"模式: {ratio_mode}, 设置 omega1 = {w1_fixed}")
+                # 固定ω1模式：保持ω1不变，根据比率调整ω2
+                # 比率 = ω1:ω2，所以 ω2 = ω1 * (ratio_values[1] / ratio_values[0])
+                current_omega1 = params['omega1']
+                new_omega2 = current_omega1 * (ratio_values[1] / ratio_values[0])
+                self.params_controller.set_param('omega2', new_omega2)
+                print(f"固定ω1模式: ω1={current_omega1:.2f}, ω2={new_omega2:.2f}, 比率={ratio_key}")
             else:
-                w2_fixed = params['omega1'] * (ratio_values[1] / ratio_values[0])
-                self.params_controller.set_param('omega2', w2_fixed)
-                print(f"模式: {ratio_mode}, 设置 omega2 = {w2_fixed}")
-            
-            # 更新滑块UI
-            self.control_panel.w1_slider.set_value(params['omega1'])
-            self.control_panel.w2_slider.set_value(params['omega2'])
+                # 固定ω2模式：保持ω2不变，根据比率调整ω1
+                # 比率 = ω1:ω2，所以 ω1 = ω2 * (ratio_values[0] / ratio_values[1])
+                current_omega2 = params['omega2']
+                new_omega1 = current_omega2 * (ratio_values[0] / ratio_values[1])
+                self.params_controller.set_param('omega1', new_omega1)
+                print(f"固定ω2模式: ω1={new_omega1:.2f}, ω2={current_omega2:.2f}, 比率={ratio_key}")
+
+            # 更新滑块UI，确保显示正确的值
+            updated_params = self.params_controller.get_params()
+            self.control_panel.w1_slider.set_value(updated_params['omega1'])
+            self.control_panel.w2_slider.set_value(updated_params['omega2'])
+
+            # 更新拍频信息显示
+            self.update_beat_info(updated_params['omega1'], updated_params['omega2'])
     
     @pyqtSlot(str)
     def on_ratio_mode_changed(self, mode):
@@ -478,6 +493,25 @@ class BeatHarmonicWindow(QMainWindow):
         
         # 设置模式参数
         self.params_controller.set_param('ratio_mode', mode)
+
+    def update_beat_info(self, omega1, omega2):
+        """更新拍频信息显示"""
+        # 计算拍频相关参数
+        beat_frequency = abs(omega1 - omega2) / (2 * np.pi)  # 拍频
+        beat_period = 1 / beat_frequency if beat_frequency > 0 else float('inf')  # 拍周期
+        main_frequency = (omega1 + omega2) / (4 * np.pi)  # 主频率
+
+        # 更新标签显示
+        self.beat_freq_label.setText(f"拍频: {beat_frequency:.3f} Hz")
+        if beat_period != float('inf'):
+            self.beat_period_label.setText(f"拍周期: {beat_period:.3f} s")
+        else:
+            self.beat_period_label.setText("拍周期: ∞ s")
+        self.main_freq_label.setText(f"主频: {main_frequency:.3f} Hz")
+
+        # 更新波形面板的公式显示
+        ratio_text = f"ω₁/ω₂ = {omega1:.2f}/{omega2:.2f} = {omega1/omega2:.3f}"
+        self.wave_panel.set_formula(f"y = A₁sin({omega1:.2f}t + φ₁) + A₂sin({omega2:.2f}t + φ₂)  |  {ratio_text}")
     
     @pyqtSlot()
     def on_play_clicked(self):
