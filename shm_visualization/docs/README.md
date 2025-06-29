@@ -59,7 +59,34 @@ The system includes three modes of harmonic motion composition:
 pip install -r requirements.txt
 ```
 
+## 项目结构 / Project Structure
+
+```
+shm_visualization/
+├── start.py                    # 主启动器 / Main launcher
+├── modules/                    # 核心模块 / Core modules
+│   ├── orthogonal_main.py     # 垂直简谐运动模块 / Orthogonal SHM module
+│   ├── beat_main.py           # 拍现象模块 / Beat phenomenon module
+│   └── phase_main.py          # 相位合成模块 / Phase composition module
+├── animations/                 # 动画控制器 / Animation controllers
+│   ├── orthogonal_animation.py
+│   ├── beat_animation.py
+│   └── phase_animation.py
+├── ui/                        # 用户界面组件 / UI components
+│   ├── ui_framework.py        # UI框架和组件 / UI framework and components
+│   └── params_controller.py   # 参数控制器 / Parameter controller
+├── utils/                     # 工具函数 / Utility functions
+├── tests/                     # 测试文件 / Test files
+├── docs/                      # 文档 / Documentation
+├── build_scripts/             # 构建脚本 / Build scripts
+│   ├── build_app.py          # PyInstaller构建脚本 / PyInstaller build script
+│   └── build_fixed.bat       # Windows批处理构建脚本 / Windows batch build script
+└── dist/                      # 打包输出目录 / Package output directory
+```
+
 ## 使用方法 / Usage
+
+### 从源代码运行 / Running from Source Code
 
 启动程序 / Start the program:
 
@@ -74,13 +101,23 @@ This will open the launcher interface where you can choose which module to run:
 
 ```bash
 # 不同向不同频（李萨如图形）/ Orthogonal with different frequencies (Lissajous figures)
-python orthogonal_main.py
+python -m modules.orthogonal_main
 
 # 同向不同频（拍现象）/ Same direction with different frequencies (Beat phenomenon)
-python beat_main.py
+python -m modules.beat_main
 
 # 同向同频（相位差合成）/ Same direction with same frequency (Phase composition)
-python phase_main.py
+python -m modules.phase_main
+```
+
+### 使用打包版本 / Using Packaged Version
+
+如果您有打包好的可执行文件，直接运行：
+If you have the packaged executable, run it directly:
+
+```bash
+# Windows
+dist/简谐振动的合成演示平台.exe
 ```
 
 ## 界面说明 / Interface Guide
@@ -109,6 +146,45 @@ This system is particularly suitable for the following educational scenarios:
 - 拍现象和相位差合成的交互式体验 / Interactive experience of beat phenomenon and phase difference composition
 - 简谐运动与相量表示法的关联 / Connection between simple harmonic motion and phasor representation
 
+## 开发指南 / Development Guide
+
+### 运行测试 / Running Tests
+
+```bash
+# 测试源代码功能 / Test source code functionality
+python tests/test_fixed_app.py
+
+# 测试打包后的应用 / Test packaged application
+python tests/test_packaged_app.py
+```
+
+### 构建可执行文件 / Building Executable
+
+使用 PyInstaller 构建可执行文件：
+Build executable using PyInstaller:
+
+```bash
+# 使用 Python 脚本构建 / Build using Python script
+python build_scripts/build_app.py
+
+# 或使用批处理脚本（Windows）/ Or use batch script (Windows)
+build_scripts/build_fixed.bat
+```
+
+### 项目维护 / Project Maintenance
+
+- 所有核心功能模块位于 `modules/` 目录
+- UI 组件和框架位于 `ui/` 目录
+- 动画控制器位于 `animations/` 目录
+- 测试文件位于 `tests/` 目录
+- 构建脚本位于 `build_scripts/` 目录
+
+All core functionality modules are in the `modules/` directory
+UI components and framework are in the `ui/` directory
+Animation controllers are in the `animations/` directory
+Test files are in the `tests/` directory
+Build scripts are in the `build_scripts/` directory
+
 ## 技术特点 / Technical Features
 
 - 基于 PyQt6 构建现代化 UI 界面 / Modern UI built with PyQt6
@@ -116,3 +192,4 @@ This system is particularly suitable for the following educational scenarios:
 - 使用 QPropertyAnimation 实现平滑动画效果 / Smooth animations using QPropertyAnimation
 - 深色主题设计，符合现代审美 / Dark theme design that meets modern aesthetics
 - 响应式布局，适应不同屏幕尺寸 / Responsive layout for different screen sizes
+- 模块化架构，便于维护和扩展 / Modular architecture for easy maintenance and extension

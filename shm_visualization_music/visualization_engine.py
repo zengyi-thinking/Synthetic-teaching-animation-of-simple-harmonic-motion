@@ -603,9 +603,450 @@ class SpectrumVisualizer(QObject):
         self.canvas.draw()
 
 
+class ComponentWaveformVisualizer(QObject):
+    """分解波形可视化器，用于显示各个简谐分量的波形"""
+
+    update_complete = pyqtSignal()
+
+    def __init__(self, canvas):
+        super().__init__()
+        self.canvas = canvas
+        self.time_data = np.linspace(0, 2, 1000)  # 2秒时间范围
+        self.component_lines = []  # 存储各分量的线条
+        self.component_colors = [
+            '#FF5722', '#2196F3', '#4CAF50', '#FF9800', '#9C27B0',
+            '#00BCD4', '#FFEB3B', '#795548', '#607D8B', '#E91E63'
+        ]  # 预定义颜色
+
+        # 确保应用中文字体
+        setup_chinese_font()
+
+        # 设置坐标轴
+        self.canvas.axes.set_xlim(0, 2)
+        self.canvas.axes.set_ylim(-2, 2)
+        self.canvas.axes.set_xlabel('时间 (s)')
+        self.canvas.axes.set_ylabel('振幅')
+        self.canvas.axes.set_title('简谐分量波形')
+        self.canvas.axes.grid(True, alpha=0.3)
+
+        # 设置深色主题
+        self.canvas.axes.set_facecolor('#0A0A0A')
+        self.canvas.figure.patch.set_facecolor('#1a1a1a')
+
+        # 初始化绘图
+        self._init_plot()
+
+    def _init_plot(self):
+        """初始化绘图元素"""
+        self.canvas.axes.clear()
+        self.component_lines = []
+
+        # 重新设置坐标轴属性
+        self.canvas.axes.set_xlim(0, 2)
+        self.canvas.axes.set_ylim(-2, 2)
+        self.canvas.axes.set_xlabel('时间 (s)', color='white')
+        self.canvas.axes.set_ylabel('振幅', color='white')
+        self.canvas.axes.set_title('简谐分量波形', color='white', fontsize=12)
+        self.canvas.axes.grid(True, alpha=0.3, color='#333333')
+        self.canvas.axes.set_facecolor('#0A0A0A')
+
+        # 设置坐标轴颜色
+        self.canvas.axes.tick_params(colors='white')
+        for spine in self.canvas.axes.spines.values():
+            spine.set_color('#555555')
+
+        self.canvas.draw()
+
+    def update_components(self, components, duration=2.0):
+        """更新分量波形显示
+
+        Args:
+            components: 简谐分量列表，每个分量包含frequency, amplitude, phase, enabled属性
+            duration: 显示时长(秒)
+        """
+        # 确保应用中文字体
+        setup_chinese_font()
+
+        # 清除旧的线条
+        self.canvas.axes.clear()
+        self.component_lines = []
+
+        # 重新设置坐标轴
+        self.canvas.axes.set_xlim(0, duration)
+        self.canvas.axes.set_ylim(-2, 2)
+        self.canvas.axes.set_xlabel('时间 (s)', color='white')
+        self.canvas.axes.set_ylabel('振幅', color='white')
+        self.canvas.axes.set_title('简谐分量波形', color='white', fontsize=12)
+        self.canvas.axes.grid(True, alpha=0.3, color='#333333')
+        self.canvas.axes.set_facecolor('#0A0A0A')
+
+        # 设置坐标轴颜色
+        self.canvas.axes.tick_params(colors='white')
+        for spine in self.canvas.axes.spines.values():
+            spine.set_color('#555555')
+
+        # 生成时间数据
+        self.time_data = np.linspace(0, duration, int(duration * 500))  # 500点/秒
+
+        # 绘制每个启用的分量
+        enabled_components = [comp for comp in components if comp.enabled]
+
+        if not enabled_components:
+            # 如果没有启用的分量，显示提示
+            self.canvas.axes.text(0.5, 0.5, '没有启用的分量',
+                                transform=self.canvas.axes.transAxes,
+                                ha='center', va='center',
+                                color='#888888', fontsize=14)
+        else:
+            # 计算最大振幅以调整y轴范围
+            max_amplitude = max(comp.amplitude for comp in enabled_components)
+            y_limit = max(2.0, max_amplitude * 1.2)
+            self.canvas.axes.set_ylim(-y_limit, y_limit)
+
+            # 绘制各个分量
+            for i, component in enumerate(enabled_components):
+                # 计算波形
+                omega = 2 * np.pi * component.frequency
+                waveform = component.amplitude * np.sin(omega * self.time_data + component.phase)
+
+                # 选择颜色
+                color = self.component_colors[i % len(self.component_colors)]
+
+                # 绘制波形
+                line, = self.canvas.axes.plot(
+                    self.time_data, waveform,
+                    color=color, linewidth=2, alpha=0.8,
+                    label=f'分量 {i+1}: {component.frequency:.1f}Hz'
+                )
+                self.component_lines.append(line)
+
+            # 添加图例
+            if len(enabled_components) <= 6:  # 只在分量不太多时显示图例
+                legend = self.canvas.axes.legend(
+                    loc='upper right',
+                    frameon=True,
+                    fancybox=True,
+                    shadow=True,
+                    fontsize=9
+                )
+                legend.get_frame().set_facecolor('#2a2a2a')
+                legend.get_frame().set_alpha(0.8)
+                for text in legend.get_texts():
+                    text.set_color('white')
+
+        self.canvas.draw()
+        self.update_complete.emit()
+
+    def clear(self):
+        """清除所有波形"""
+        self.canvas.axes.clear()
+        self.component_lines = []
+        self._init_plot()
+
+
+class UnifiedWaveformVisualizer(QObject):
+    """统一波形可视化器，在单个画布中显示合成波形和分解波形"""
+
+    update_complete = pyqtSignal()
+
+    def __init__(self, canvas):
+        super().__init__()
+        self.canvas = canvas
+        self.time_data = np.linspace(0, 2, 1000)  # 2秒时间范围
+        self.component_colors = [
+            '#FF5722', '#2196F3', '#4CAF50', '#FF9800', '#9C27B0',
+            '#00BCD4', '#FFEB3B', '#795548', '#607D8B', '#E91E63'
+        ]  # 预定义颜色
+
+        # 确保应用中文字体
+        setup_chinese_font()
+
+        # 设置深色主题
+        self.canvas.figure.patch.set_facecolor('#1a1a1a')
+
+        # 确保matplotlib使用正确的绘图设置
+        plt.rcParams['lines.linewidth'] = 2
+        plt.rcParams['lines.linestyle'] = '-'
+        plt.rcParams['lines.marker'] = ''
+
+        # 初始化绘图
+        self._init_plot()
+
+    def _init_plot(self):
+        """初始化绘图元素"""
+        self.canvas.figure.clear()
+
+        # 创建单个子图作为占位符
+        ax = self.canvas.figure.add_subplot(111)
+        ax.set_facecolor('#0A0A0A')
+        ax.text(0.5, 0.5, '等待波形数据...',
+                transform=ax.transAxes, ha='center', va='center',
+                color='#888888', fontsize=14)
+        ax.set_xlim(0, 2)
+        ax.set_ylim(-1, 1)
+        ax.set_xlabel('时间 (s)', color='white')
+        ax.set_ylabel('振幅', color='white')
+        ax.tick_params(colors='white')
+        for spine in ax.spines.values():
+            spine.set_color('#555555')
+        ax.grid(True, alpha=0.3, color='#333333')
+
+        self.canvas.draw()
+
+    def update_waveforms(self, components, composite_wave=None, time_data=None, duration=2.0):
+        """更新统一波形显示
+
+        Args:
+            components: 简谐分量列表
+            composite_wave: 合成波形数据
+            time_data: 时间数据
+            duration: 显示时长(秒)
+        """
+        try:
+            # 确保应用中文字体
+            setup_chinese_font()
+
+            # 清除画布
+            self.canvas.figure.clear()
+
+            # 获取启用的分量
+            enabled_components = [comp for comp in components if comp.enabled]
+
+            if not enabled_components and composite_wave is None:
+                # 如果没有数据，显示占位符
+                self._init_plot()
+                return
+
+            # 根据分量数量动态调整画布高度
+            num_subplots = 1 + len(enabled_components)
+            self._adjust_canvas_height(num_subplots)
+
+            # 准备时间数据 - 使用固定的时间窗口确保稳定显示
+            if enabled_components:
+                # 根据最低频率计算合适的显示时间窗口
+                min_freq = min(comp.frequency for comp in enabled_components)
+                # 显示3-5个完整周期
+                cycles_to_show = 4
+                stable_duration = cycles_to_show / min_freq
+                # 限制显示时间在合理范围内
+                stable_duration = max(0.05, min(0.5, stable_duration))
+            else:
+                stable_duration = 0.2  # 默认显示时间
+
+            # 使用固定的采样点数确保稳定显示
+            num_points = 1000
+            self.time_data = np.linspace(0, stable_duration, num_points)
+            time_display = self.time_data
+
+            # 计算子图数量：各个分量 + 合成波形
+            num_subplots = len(enabled_components) + 1
+
+            # 计算合成波形的位置（放在中间）
+            if len(enabled_components) == 0:
+                composite_position = 0
+                height_ratios = [1.5]  # 只有合成波形
+            elif len(enabled_components) == 1:
+                composite_position = 1  # 分量1 + 合成波形
+                height_ratios = [1, 1.5]
+            elif len(enabled_components) == 2:
+                composite_position = 1  # 分量1 + 合成波形 + 分量2
+                height_ratios = [1, 1.5, 1]
+            else:
+                # 多分量时，合成波形放在中间位置
+                composite_position = len(enabled_components) // 2
+                height_ratios = [1] * len(enabled_components)
+                height_ratios.insert(composite_position, 1.5)  # 在中间插入合成波形
+
+            # 计算动态间距：分量越多，间距越小
+            if num_subplots <= 2:
+                hspace = 0.4
+            elif num_subplots <= 4:
+                hspace = 0.3
+            else:
+                hspace = 0.2
+
+            # 使用GridSpec创建更好的布局
+            from matplotlib.gridspec import GridSpec
+            gs = GridSpec(num_subplots, 1,
+                         height_ratios=height_ratios,
+                         hspace=hspace)
+
+            # 创建子图并绘制内容
+            component_index = 0  # 用于跟踪分量索引
+
+            for i in range(num_subplots):
+                ax = self.canvas.figure.add_subplot(gs[i])
+
+                # 设置子图样式
+                ax.set_facecolor('#0A0A0A')
+
+                # 根据子图数量调整字体大小
+                if num_subplots <= 3:
+                    tick_size = 9
+                    title_size = 11
+                elif num_subplots <= 5:
+                    tick_size = 8
+                    title_size = 10
+                else:
+                    tick_size = 7
+                    title_size = 9
+
+                ax.tick_params(colors='white', labelsize=tick_size)
+                ax.grid(True, alpha=0.3, color='#333333')
+                for spine in ax.spines.values():
+                    spine.set_color('#555555')
+
+                if i == composite_position:
+                    # 合成波形（位于中间位置）
+                    ax.set_title('合成波形', color='#00FFFF', fontsize=title_size, pad=3)
+
+                    if enabled_components:
+                        # 重新计算合成波形，使用固定的时间窗口确保稳定显示
+                        composite_stable = np.zeros_like(self.time_data)
+                        for component in enabled_components:
+                            omega = 2 * np.pi * component.frequency
+                            component_wave = component.amplitude * np.sin(omega * self.time_data + component.phase)
+                            composite_stable += component_wave
+
+                        # 绘制合成波形 - 使用固定的时间窗口，保持稳定显示
+                        ax.plot(time_display, composite_stable, color='#00FFFF', linewidth=2)
+
+                        # 设置Y轴范围
+                        max_amp = np.max(np.abs(composite_stable))
+                        if max_amp > 0:
+                            ax.set_ylim(-max_amp * 1.2, max_amp * 1.2)
+                    else:
+                        ax.text(0.5, 0.5, '无合成波形数据', transform=ax.transAxes,
+                               ha='center', va='center', color='#888888', fontsize=12)
+                else:
+                    # 分量波形
+                    if component_index < len(enabled_components):
+                        component = enabled_components[component_index]
+
+                        # 设置标题，根据分量数量调整信息显示
+                        if num_subplots <= 4:
+                            # 分量少时显示详细信息
+                            title = f"分量 {component_index+1}: {component.frequency:.1f}Hz (振幅: {component.amplitude:.2f})"
+                        else:
+                            # 分量多时显示简化信息
+                            title = f"分量 {component_index+1}: {component.frequency:.0f}Hz"
+                        ax.set_title(title, color='white', fontsize=title_size, pad=2)
+
+                        # 计算分量波形 - 使用固定的时间窗口确保稳定显示
+                        omega = 2 * np.pi * component.frequency
+                        waveform = component.amplitude * np.sin(omega * self.time_data + component.phase)
+
+                        # 选择颜色
+                        color = self.component_colors[component_index % len(self.component_colors)]
+
+                        # 绘制分量波形 - 直接使用固定时间窗口的数据
+                        ax.plot(time_display, waveform, color=color, linewidth=2)
+
+                        # 设置Y轴范围
+                        max_amp = component.amplitude
+                        if max_amp > 0:
+                            ax.set_ylim(-max_amp * 1.2, max_amp * 1.2)
+
+                        component_index += 1  # 递增分量索引
+
+                # 设置X轴 - 使用固定的时间窗口
+                ax.set_xlim(0, stable_duration)
+
+                # 只在最后一个子图显示X轴标签
+                if i == num_subplots - 1:
+                    ax.set_xlabel('时间 (s)', color='white', fontsize=tick_size + 1)
+                else:
+                    ax.set_xticklabels([])
+
+                # 为所有子图添加Y轴标签
+                ax.set_ylabel('振幅', color='white', fontsize=tick_size)
+
+            # 调整布局，根据子图数量优化边距，忽略警告
+            import warnings
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                if num_subplots <= 3:
+                    self.canvas.figure.tight_layout(pad=1.5)
+                elif num_subplots <= 5:
+                    self.canvas.figure.tight_layout(pad=1.0)
+                else:
+                    self.canvas.figure.tight_layout(pad=0.5)
+
+            # 刷新画布
+            self.canvas.draw()
+            self.update_complete.emit()
+
+        except Exception as e:
+            print(f"波形更新错误: {e}")
+            import traceback
+            traceback.print_exc()
+            self._init_plot()
+
+    def clear(self):
+        """清除画布并显示占位符"""
+        self._init_plot()
+
+    def _adjust_canvas_height(self, num_subplots):
+        """根据子图数量动态调整画布高度
+
+        Args:
+            num_subplots: 子图数量
+        """
+        # 计算合适的高度：基础高度 + 每个子图的高度
+        base_height = 200  # 基础高度
+        subplot_height = 120  # 每个子图的高度
+
+        # 计算总高度
+        total_height = base_height + (num_subplots * subplot_height)
+
+        # 设置最小和最大高度限制
+        min_height = 400
+        max_height = 1200
+
+        # 应用高度限制
+        final_height = max(min_height, min(total_height, max_height))
+
+        # 设置画布高度
+        self.canvas.setMinimumHeight(final_height)
+        self.canvas.setMaximumHeight(final_height)
+
+        # 调整图形大小
+        fig_width = 10
+        fig_height = final_height / 100  # 转换为英寸
+        self.canvas.figure.set_size_inches(fig_width, fig_height)
+
+    def _setup_subplot_style(self, ax, title, is_composite=False):
+        """设置子图样式"""
+        ax.set_facecolor('#0A0A0A')
+
+        # 设置标题
+        title_color = '#00FFFF' if is_composite else 'white'
+        title_size = 12 if is_composite else 10
+        ax.set_title(title, color=title_color, fontsize=title_size, pad=5)
+
+        # 设置坐标轴
+        ax.set_xlim(0, self.time_data[-1] if len(self.time_data) > 0 else 2)
+        ax.tick_params(colors='white', labelsize=8)
+
+        # 设置网格
+        ax.grid(True, alpha=0.3, color='#333333')
+
+        # 设置边框颜色
+        for spine in ax.spines.values():
+            spine.set_color('#555555')
+
+        # 只在非最后一个子图时隐藏X轴标签
+        ax.set_xticklabels([])
+
+    def clear(self):
+        """清除所有波形"""
+        self.canvas.figure.clear()
+        self._init_plot()
+
+
 class HarmonicMotionVisualizer(QObject):
     """简谐振动可视化器，用于绘制运动轨迹"""
-    
+
     update_complete = pyqtSignal()
     
     def __init__(self, canvas):

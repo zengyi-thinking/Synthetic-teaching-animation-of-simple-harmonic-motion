@@ -5,7 +5,7 @@
 """
 
 from PyQt6.QtCore import QObject, pyqtSignal
-from ui_framework import INITIAL_PARAMS, RATIO_PRESETS
+from ui.ui_framework import INITIAL_PARAMS, RATIO_PRESETS
 
 
 class ParamsController(QObject):

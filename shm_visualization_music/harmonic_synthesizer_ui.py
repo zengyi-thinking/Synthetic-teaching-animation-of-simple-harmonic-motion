@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal, pyqtSlot, QObject
 from PyQt6.QtGui import QFont
 
-from visualization_engine import MatplotlibCanvas, WaveformVisualizer, SpectrumVisualizer
+from visualization_engine import MatplotlibCanvas, WaveformVisualizer, ComponentWaveformVisualizer, UnifiedWaveformVisualizer
 from audio_engine import AudioEngine
 
 
@@ -77,44 +77,32 @@ class HarmonicSynthesizerPanel(QWidget):
         
         # 添加默认的一个分量
         self.add_harmonic_component(440.0, 0.8, 0.0)
+
+        # 更新分量计数
+        self.update_component_count()
     
     def setup_ui(self):
         """设置用户界面"""
-        main_layout = QHBoxLayout(self)  # 主布局为水平布局
-        
-        # 创建左右分割器
-        splitter = QSplitter(Qt.Orientation.Horizontal)
-        
-        # ====== 左侧区域: 简谐分量控制 ======
-        left_widget = QWidget()
-        left_layout = QVBoxLayout(left_widget)
-        left_layout.setContentsMargins(0, 0, 0, 0)
-        
+        main_layout = QVBoxLayout(self)  # 主布局改为垂直布局
+
+        # ====== 顶部区域: 标题和预设控制 ======
+        top_widget = QWidget()
+        top_layout = QHBoxLayout(top_widget)
+        top_layout.setContentsMargins(10, 5, 10, 5)
+
         # 标题
         title_label = QLabel("简谐波合成器")
         title_label.setStyleSheet("font-size: 16px; font-weight: bold; color: white; margin-bottom: 10px;")
-        left_layout.addWidget(title_label)
-        
-        # 预设选择组
-        preset_group = QGroupBox("音色预设")
-        preset_group.setStyleSheet("""
-            QGroupBox {
-                border: 1px solid #555555;
-                border-radius: 5px;
-                margin-top: 10px;
-                color: white;
-                font-weight: bold;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px;
-            }
-        """)
-        preset_layout = QVBoxLayout(preset_group)
-        
+        top_layout.addWidget(title_label)
+
+        # 预设选择组 - 水平布局，紧凑设计
+        preset_widget = QWidget()
+        preset_layout = QHBoxLayout(preset_widget)
+        preset_layout.setContentsMargins(0, 0, 0, 0)
+
         # 预设选择下拉框
-        preset_form = QFormLayout()
+        preset_label = QLabel("音色预设:")
+        preset_label.setStyleSheet("color: white; font-weight: bold;")
         self.preset_combo = QComboBox()
         self.preset_combo.setStyleSheet("""
             QComboBox {
@@ -123,6 +111,7 @@ class HarmonicSynthesizerPanel(QWidget):
                 border: 1px solid #555555;
                 border-radius: 3px;
                 padding: 5px;
+                min-width: 150px;
             }
             QComboBox::drop-down {
                 border: none;
@@ -133,12 +122,8 @@ class HarmonicSynthesizerPanel(QWidget):
                 selection-background-color: #4CAF50;
             }
         """)
-        preset_form.addRow("选择预设:", self.preset_combo)
-        preset_layout.addLayout(preset_form)
-        
+
         # 应用预设按钮
-        preset_buttons_layout = QHBoxLayout()
-        
         apply_preset_btn = QPushButton("应用预设")
         apply_preset_btn.setStyleSheet("""
             QPushButton {
@@ -157,8 +142,8 @@ class HarmonicSynthesizerPanel(QWidget):
             }
         """)
         apply_preset_btn.clicked.connect(self.on_apply_preset)
-        
-        # 添加保存预设按钮
+
+        # 保存预设按钮
         save_preset_btn = QPushButton("保存预设")
         save_preset_btn.setStyleSheet("""
             QPushButton {
@@ -177,228 +162,66 @@ class HarmonicSynthesizerPanel(QWidget):
             }
         """)
         save_preset_btn.clicked.connect(self.on_save_preset)
-        
-        preset_buttons_layout.addWidget(apply_preset_btn)
-        preset_buttons_layout.addWidget(save_preset_btn)
-        preset_layout.addLayout(preset_buttons_layout)
-        
-        left_layout.addWidget(preset_group)
 
-        # ====== 音色增强控制组 ======
-        enhancement_group = QGroupBox("音色增强")
-        enhancement_group.setStyleSheet("""
-            QGroupBox {
-                border: 1px solid #555555;
-                border-radius: 5px;
-                margin-top: 10px;
-                color: white;
-                font-weight: bold;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px;
-            }
-        """)
-        enhancement_layout = QVBoxLayout(enhancement_group)
+        preset_layout.addWidget(preset_label)
+        preset_layout.addWidget(self.preset_combo)
+        preset_layout.addWidget(apply_preset_btn)
+        preset_layout.addWidget(save_preset_btn)
+        preset_layout.addStretch()  # 添加弹性空间
 
-        # === 波形叠加效果控制 ===
-        waveform_layering_group = QGroupBox("波形叠加")
-        waveform_layering_group.setStyleSheet("border: none; color: white; font-weight: bold;")
-        waveform_layering_layout = QVBoxLayout(waveform_layering_group)
-        
-        # 频率偏移控制 - 创建合唱/相位效果
-        freq_offset_layout = QHBoxLayout()
-        freq_offset_label = QLabel("频率偏移:")
-        freq_offset_label.setStyleSheet("color: white;")
-        self.freq_offset_slider = QSlider(Qt.Orientation.Horizontal)
-        self.freq_offset_slider.setRange(0, 100)  # 0 到 10Hz，精度0.1Hz
-        self.freq_offset_slider.setValue(0)
-        self.freq_offset_slider.valueChanged.connect(self.on_freq_offset_changed)
-        self.freq_offset_value = QLabel("0.0 Hz")
-        self.freq_offset_value.setStyleSheet("color: white;")
-        freq_offset_layout.addWidget(freq_offset_label)
-        freq_offset_layout.addWidget(self.freq_offset_slider)
-        freq_offset_layout.addWidget(self.freq_offset_value)
-        waveform_layering_layout.addLayout(freq_offset_layout)
-        
-        # 相位随机化控制 - 创造更丰富的音色
-        phase_rand_layout = QHBoxLayout()
-        phase_rand_label = QLabel("相位随机:")
-        phase_rand_label.setStyleSheet("color: white;")
-        self.phase_rand_slider = QSlider(Qt.Orientation.Horizontal)
-        self.phase_rand_slider.setRange(0, 100)  # 0 到 100%
-        self.phase_rand_slider.setValue(0)
-        self.phase_rand_slider.valueChanged.connect(self.on_phase_rand_changed)
-        self.phase_rand_value = QLabel("0%")
-        self.phase_rand_value.setStyleSheet("color: white;")
-        phase_rand_layout.addWidget(phase_rand_label)
-        phase_rand_layout.addWidget(self.phase_rand_slider)
-        phase_rand_layout.addWidget(self.phase_rand_value)
-        waveform_layering_layout.addLayout(phase_rand_layout)
-        
-        # 添加次谐波控制 - 增加低音厚重感
-        subharmonic_layout = QHBoxLayout()
-        subharmonic_label = QLabel("次谐波:")
-        subharmonic_label.setStyleSheet("color: white;")
-        self.subharmonic_slider = QSlider(Qt.Orientation.Horizontal)
-        self.subharmonic_slider.setRange(0, 100)  # 0 到 100%
-        self.subharmonic_slider.setValue(0)
-        self.subharmonic_slider.valueChanged.connect(self.on_subharmonic_changed)
-        self.subharmonic_value = QLabel("0%")
-        self.subharmonic_value.setStyleSheet("color: white;")
-        subharmonic_layout.addWidget(subharmonic_label)
-        subharmonic_layout.addWidget(self.subharmonic_slider)
-        subharmonic_layout.addWidget(self.subharmonic_value)
-        waveform_layering_layout.addLayout(subharmonic_layout)
-        
-        enhancement_layout.addWidget(waveform_layering_group)
+        top_layout.addWidget(preset_widget)
+        main_layout.addWidget(top_widget)
 
-        # ADSR包络控制
-        adsr_layout = QVBoxLayout()
-        adsr_label = QLabel("包络控制 (ADSR)")
-        adsr_label.setStyleSheet("color: white; font-weight: bold;")
-        adsr_layout.addWidget(adsr_label)
-        
-        # 启用包络复选框
-        self.envelope_cb = QCheckBox("启用包络")
-        self.envelope_cb.setChecked(self.use_envelope)
-        self.envelope_cb.setStyleSheet("color: white;")
-        self.envelope_cb.toggled.connect(self.on_toggle_envelope)
-        adsr_layout.addWidget(self.envelope_cb)
-        
-        # 包络参数滑块
-        adsr_sliders = QFormLayout()
-        
-        # 起音时间滑块
-        self.attack_slider = QSlider(Qt.Orientation.Horizontal)
-        self.attack_slider.setRange(1, 300)  # 0.001秒到0.3秒
-        self.attack_slider.setValue(int(0.02 * 1000))  # 默认20ms
-        self.attack_slider.valueChanged.connect(self.on_adsr_changed)
-        adsr_sliders.addRow("起音时间:", self.attack_slider)
-        
-        # 衰减时间滑块
-        self.decay_slider = QSlider(Qt.Orientation.Horizontal)
-        self.decay_slider.setRange(10, 500)  # 0.01秒到0.5秒
-        self.decay_slider.setValue(int(0.1 * 1000))  # 默认100ms
-        self.decay_slider.valueChanged.connect(self.on_adsr_changed)
-        adsr_sliders.addRow("衰减时间:", self.decay_slider)
-        
-        # 延音水平滑块
-        self.sustain_slider = QSlider(Qt.Orientation.Horizontal)
-        self.sustain_slider.setRange(1, 100)  # 0.01到1.0
-        self.sustain_slider.setValue(int(0.7 * 100))  # 默认0.7
-        self.sustain_slider.valueChanged.connect(self.on_adsr_changed)
-        adsr_sliders.addRow("延音水平:", self.sustain_slider)
-        
-        # 释放时间滑块
-        self.release_slider = QSlider(Qt.Orientation.Horizontal)
-        self.release_slider.setRange(10, 1000)  # 0.01秒到1秒
-        self.release_slider.setValue(int(0.3 * 1000))  # 默认300ms
-        self.release_slider.valueChanged.connect(self.on_adsr_changed)
-        adsr_sliders.addRow("释放时间:", self.release_slider)
-        
-        adsr_layout.addLayout(adsr_sliders)
-        enhancement_layout.addLayout(adsr_layout)
-        
-        # 混响控制
-        reverb_layout = QVBoxLayout()
-        reverb_label = QLabel("混响控制")
-        reverb_label.setStyleSheet("color: white; font-weight: bold; margin-top: 10px;")
-        reverb_layout.addWidget(reverb_label)
-        
-        # 启用混响复选框
-        self.reverb_cb = QCheckBox("启用混响")
-        self.reverb_cb.setChecked(self.add_reverb)
-        self.reverb_cb.setStyleSheet("color: white;")
-        self.reverb_cb.toggled.connect(self.on_toggle_reverb)
-        reverb_layout.addWidget(self.reverb_cb)
-        
-        # 混响强度滑块
-        reverb_slider_layout = QFormLayout()
-        self.reverb_slider = QSlider(Qt.Orientation.Horizontal)
-        self.reverb_slider.setRange(0, 100)
-        self.reverb_slider.setValue(int(self.reverb_amount * 100))
-        self.reverb_slider.valueChanged.connect(self.on_reverb_amount_changed)
-        reverb_slider_layout.addRow("混响强度:", self.reverb_slider)
-        reverb_layout.addLayout(reverb_slider_layout)
-        
-        enhancement_layout.addLayout(reverb_layout)
-        
-        # 音符持续时间控制
-        duration_layout = QFormLayout()
-        duration_layout.setContentsMargins(0, 10, 0, 0)
-        
-        # 持续时间滑块
-        self.duration_slider = QSlider(Qt.Orientation.Horizontal)
-        self.duration_slider.setRange(5, 30)  # 0.5秒到3秒
-        self.duration_slider.setValue(int(self.note_duration * 10))  # 默认1秒
-        self.duration_slider.valueChanged.connect(self.on_duration_changed)
-        
-        # 持续时间标签
-        self.duration_label = QLabel(f"音符持续时间: {self.note_duration}秒")
-        self.duration_label.setStyleSheet("color: white;")
-        
-        duration_layout.addRow(self.duration_label, self.duration_slider)
-        enhancement_layout.addLayout(duration_layout)
-        
-        left_layout.addWidget(enhancement_group)
-        
-        # 分量控制组
+        # ====== 中心区域: 波形分量控制 (主要工作区域) ======
+        center_widget = QWidget()
+        center_layout = QHBoxLayout(center_widget)
+        center_layout.setContentsMargins(10, 10, 10, 10)  # 增加外边距
+        center_layout.setSpacing(15)  # 增加组件间距
+        # ====== 左侧: 波形分量控制 (扩大为主要工作区域) ======
         components_group = QGroupBox("波形分量")
         components_group.setStyleSheet("""
             QGroupBox {
-                border: 1px solid #555555;
-                border-radius: 5px;
-                margin-top: 10px;
+                border: 2px solid #4CAF50;
+                border-radius: 8px;
+                margin: 5px;
+                padding-top: 15px;
                 color: white;
                 font-weight: bold;
+                font-size: 14px;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px;
+                left: 15px;
+                padding: 0 8px;
+                color: #4CAF50;
             }
         """)
-        
+
         # 分量控制布局
         components_layout = QVBoxLayout(components_group)
-        
-        # 分量列表放在滚动区域内
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_content = QWidget()
-        self.components_layout = QVBoxLayout(scroll_content)
-        scroll_area.setWidget(scroll_content)
-        scroll_area.setStyleSheet("""
-            QScrollArea {
-                border: none;
-                background-color: transparent;
-            }
-            QScrollBar:vertical {
-                background: #333333;
-                width: 10px;
-                margin: 0px;
-            }
-            QScrollBar::handle:vertical {
-                background: #666666;
-                min-height: 20px;
-                border-radius: 5px;
-            }
-        """)
-        
-        components_layout.addWidget(scroll_area)
-        
-        # 添加新分量按钮
-        self.add_component_btn = QPushButton("添加分量")
+        components_layout.setContentsMargins(20, 25, 20, 20)  # 增加内边距
+        components_layout.setSpacing(10)  # 增加组件间距
+
+        # 优化的控制按钮区域 - 移至顶部
+        control_buttons_layout = QVBoxLayout()
+        control_buttons_layout.setSpacing(8)
+
+        # 主要操作按钮行
+        main_buttons_row = QHBoxLayout()
+        main_buttons_row.setSpacing(10)
+
+        # 添加新分量按钮 - 主要操作
+        self.add_component_btn = QPushButton("+ 添加分量")
         self.add_component_btn.setStyleSheet("""
             QPushButton {
                 background-color: #4CAF50;
                 color: white;
                 border: none;
-                border-radius: 4px;
-                padding: 8px;
+                border-radius: 8px;
+                padding: 12px 20px;
                 font-weight: bold;
+                font-size: 13px;
+                min-width: 120px;
             }
             QPushButton:hover {
                 background-color: #45a049;
@@ -408,11 +231,7 @@ class HarmonicSynthesizerPanel(QWidget):
             }
         """)
         self.add_component_btn.clicked.connect(self.on_add_component)
-        components_layout.addWidget(self.add_component_btn)
-        
-        # 添加按钮行 - 包含清除和锁定谐波比例
-        button_row = QHBoxLayout()
-        
+
         # 清除所有分量按钮
         self.clear_btn = QPushButton("清除全部")
         self.clear_btn.setStyleSheet("""
@@ -420,9 +239,11 @@ class HarmonicSynthesizerPanel(QWidget):
                 background-color: #F44336;
                 color: white;
                 border: none;
-                border-radius: 4px;
-                padding: 8px;
+                border-radius: 8px;
+                padding: 12px 20px;
                 font-weight: bold;
+                font-size: 13px;
+                min-width: 100px;
             }
             QPushButton:hover {
                 background-color: #D32F2F;
@@ -432,107 +253,479 @@ class HarmonicSynthesizerPanel(QWidget):
             }
         """)
         self.clear_btn.clicked.connect(self.on_clear_components)
-        
+
+        main_buttons_row.addWidget(self.add_component_btn)
+        main_buttons_row.addWidget(self.clear_btn)
+        main_buttons_row.addStretch()  # 推送到左侧
+
+        control_buttons_layout.addLayout(main_buttons_row)
+
+        # 选项控制行
+        options_row = QHBoxLayout()
+
         # 锁定谐波比例
         self.lock_harmonics_cb = QCheckBox("锁定谐波比例")
         self.lock_harmonics_cb.setStyleSheet("""
             QCheckBox {
                 color: white;
+                font-size: 12px;
+                font-weight: bold;
             }
             QCheckBox::indicator {
-                width: 16px;
-                height: 16px;
+                width: 20px;
+                height: 20px;
             }
             QCheckBox::indicator:unchecked {
-                border: 1px solid #999999;
+                border: 2px solid #999999;
                 background-color: #333333;
+                border-radius: 4px;
             }
             QCheckBox::indicator:checked {
-                border: 1px solid #4CAF50;
+                border: 2px solid #4CAF50;
                 background-color: #4CAF50;
+                border-radius: 4px;
+            }
+            QCheckBox::indicator:checked:hover {
+                background-color: #45a049;
             }
         """)
-        
-        button_row.addWidget(self.clear_btn)
-        button_row.addWidget(self.lock_harmonics_cb)
-        components_layout.addLayout(button_row)
-        
-        left_layout.addWidget(components_group, 1)  # 1是伸缩因子，允许这个区域扩展
-        
-        # ====== 右侧区域: 合成结果 ======
-        right_widget = QWidget()
-        right_layout = QVBoxLayout(right_widget)
-        right_layout.setContentsMargins(0, 0, 0, 0)
-        
-        # 合成波形面板
-        waveform_group = QGroupBox("合成波形")
-        waveform_group.setStyleSheet("""
-            QGroupBox {
+
+        # 分量计数标签
+        self.component_count_label = QLabel("分量数: 0")
+        self.component_count_label.setStyleSheet("""
+            QLabel {
+                color: #AAAAAA;
+                font-size: 11px;
+                padding: 5px;
+                background-color: #2a2a2a;
+                border-radius: 4px;
+            }
+        """)
+
+        options_row.addWidget(self.lock_harmonics_cb)
+        options_row.addStretch()
+        options_row.addWidget(self.component_count_label)
+
+        control_buttons_layout.addLayout(options_row)
+
+        components_layout.addLayout(control_buttons_layout)
+
+        # 优化的分量列表滚动区域
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setMinimumHeight(350)  # 调整最小高度
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
+        # 设置滚动区域样式，防止内容重叠
+        scroll_area.setStyleSheet("""
+            QScrollArea {
                 border: 1px solid #555555;
                 border-radius: 5px;
-                margin-top: 10px;
+                background-color: #2a2a2a;
+                margin: 2px;
+            }
+            QScrollBar:vertical {
+                background: #333333;
+                width: 12px;
+                margin: 0px;
+                border-radius: 6px;
+            }
+            QScrollBar::handle:vertical {
+                background: #666666;
+                min-height: 20px;
+                border-radius: 6px;
+                margin: 2px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #777777;
+            }
+        """)
+
+        scroll_content = QWidget()
+        self.components_layout = QVBoxLayout(scroll_content)
+        self.components_layout.setSpacing(10)  # 增加分量间距
+        self.components_layout.setContentsMargins(10, 10, 10, 10)  # 增加内边距
+
+        scroll_area.setWidget(scroll_content)
+        scroll_area.setStyleSheet("""
+            QScrollArea {
+                border: 2px solid #555555;
+                border-radius: 8px;
+                background-color: #1a1a1a;
+            }
+            QScrollArea > QWidget > QWidget {
+                background-color: #1a1a1a;
+            }
+            QScrollBar:vertical {
+                background: #2a2a2a;
+                width: 16px;
+                margin: 2px;
+                border-radius: 8px;
+            }
+            QScrollBar::handle:vertical {
+                background: #4CAF50;
+                min-height: 30px;
+                border-radius: 8px;
+                margin: 2px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #45a049;
+            }
+            QScrollBar::handle:vertical:pressed {
+                background: #3d8b40;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+                background: transparent;
+            }
+        """)
+
+        components_layout.addWidget(scroll_area, 1)  # 给滚动区域最大空间
+
+        # 使用分割器来实现更好的布局控制
+        center_splitter = QSplitter(Qt.Orientation.Horizontal)
+        center_splitter.addWidget(components_group)
+
+        # ====== 右侧: 统一可视化面板 ======
+        visualization_widget = QWidget()
+        visualization_layout = QVBoxLayout(visualization_widget)
+        visualization_layout.setContentsMargins(10, 10, 10, 10)  # 增加外边距
+        visualization_layout.setSpacing(10)  # 增加组件间距
+
+        # 统一可视化面板 - 包含合成波形和分解波形
+        unified_waveform_group = QGroupBox("波形可视化")
+        unified_waveform_group.setStyleSheet("""
+            QGroupBox {
+                border: 2px solid #2196F3;
+                border-radius: 8px;
+                margin: 5px;
+                padding-top: 15px;
                 color: white;
                 font-weight: bold;
+                font-size: 14px;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px;
+                left: 15px;
+                padding: 0 8px;
+                color: #2196F3;
             }
         """)
-        
-        waveform_layout = QVBoxLayout(waveform_group)
-        self.waveform_canvas = MatplotlibCanvas()
-        self.waveform_viz = WaveformVisualizer(self.waveform_canvas)
-        waveform_layout.addWidget(self.waveform_canvas)
-        
-        # 频谱面板
-        spectrum_group = QGroupBox("频谱分析")
-        spectrum_group.setStyleSheet("""
-            QGroupBox {
-                border: 1px solid #555555;
-                border-radius: 5px;
-                margin-top: 10px;
-                color: white;
-                font-weight: bold;
+
+        unified_waveform_layout = QVBoxLayout(unified_waveform_group)
+        unified_waveform_layout.setContentsMargins(15, 20, 15, 15)  # 增加内边距
+        unified_waveform_layout.setSpacing(10)  # 增加组件间距
+
+        # 创建滚动区域用于波形可视化
+        self.visualization_scroll = QScrollArea()
+        self.visualization_scroll.setWidgetResizable(True)
+        self.visualization_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.visualization_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.visualization_scroll.setMinimumHeight(400)  # 设置最小高度
+
+        # 设置滚动区域样式
+        self.visualization_scroll.setStyleSheet("""
+            QScrollArea {
+                border: none;
+                background-color: transparent;
             }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px;
+            QScrollBar:vertical {
+                background: #333333;
+                width: 12px;
+                margin: 0px;
+                border-radius: 6px;
+            }
+            QScrollBar::handle:vertical {
+                background: #666666;
+                min-height: 20px;
+                border-radius: 6px;
+                margin: 2px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #777777;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                border: none;
+                background: none;
             }
         """)
-        
-        spectrum_layout = QVBoxLayout(spectrum_group)
-        self.spectrum_canvas = MatplotlibCanvas()
-        self.spectrum_viz = SpectrumVisualizer(self.spectrum_canvas)
-        spectrum_layout.addWidget(self.spectrum_canvas)
-        
+
+        # 创建统一的画布，用于显示合成波形和分解波形
+        self.unified_canvas = MatplotlibCanvas()
+        # 移除固定高度，让它根据内容动态调整
+        self.unified_canvas.setMinimumHeight(400)  # 设置最小高度
+
+        # 将画布设置为滚动区域的内容
+        self.visualization_scroll.setWidget(self.unified_canvas)
+
+        # 创建新的统一可视化器
+        self.unified_viz = UnifiedWaveformVisualizer(self.unified_canvas)
+
+        # 将滚动区域添加到布局中
+        unified_waveform_layout.addWidget(self.visualization_scroll)
+
         # 播放控制布局
         control_layout = self.setup_playback_controls()
-        
-        # 添加到右侧布局
-        right_layout.addWidget(waveform_group, 1)
-        right_layout.addWidget(spectrum_group, 1)
-        right_layout.addLayout(control_layout)
-        
-        # 添加帮助文本
+
+        # 添加到可视化布局
+        visualization_layout.addWidget(unified_waveform_group, 1)  # 统一面板占据主要空间
+        visualization_layout.addLayout(control_layout)
+
+        # 将可视化面板添加到分割器
+        center_splitter.addWidget(visualization_widget)
+
+        # 设置分割器的初始比例 (40% : 60%)
+        center_splitter.setSizes([400, 600])
+        center_splitter.setStretchFactor(0, 0)  # 左侧面板不拉伸
+        center_splitter.setStretchFactor(1, 1)  # 右侧面板可拉伸
+
+        # 设置分割器样式
+        center_splitter.setStyleSheet("""
+            QSplitter::handle {
+                background-color: #555555;
+                width: 3px;
+            }
+            QSplitter::handle:hover {
+                background-color: #777777;
+            }
+        """)
+
+        # 将分割器添加到中心布局
+        center_layout.addWidget(center_splitter)
+
+        # 将中心区域添加到主布局，占据大部分空间
+        main_layout.addWidget(center_widget, 3)  # 中心区域权重为3，占据主要空间
+
+        # ====== 底部区域: 音色增强控制 (降低优先级) ======
+        bottom_widget = QWidget()
+        bottom_layout = QHBoxLayout(bottom_widget)
+        bottom_layout.setContentsMargins(10, 5, 10, 10)
+
+        # 音色增强控制组 - 紧凑的水平布局
+        enhancement_group = QGroupBox("音色增强")
+        enhancement_group.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #555555;
+                border-radius: 5px;
+                margin-top: 5px;
+                color: white;
+                font-weight: bold;
+                font-size: 12px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px;
+            }
+        """)
+        enhancement_layout = QHBoxLayout(enhancement_group)  # 改为水平布局
+        enhancement_layout.setContentsMargins(10, 15, 10, 10)
+
+        # === 波形叠加效果控制 ===
+        waveform_layering_group = QGroupBox("波形叠加")
+        waveform_layering_group.setStyleSheet("border: none; color: white; font-weight: bold; font-size: 11px;")
+        waveform_layering_layout = QVBoxLayout(waveform_layering_group)
+        waveform_layering_layout.setSpacing(5)
+
+        # 频率偏移控制 - 创建合唱/相位效果
+        freq_offset_layout = QHBoxLayout()
+        freq_offset_label = QLabel("频率偏移:")
+        freq_offset_label.setStyleSheet("color: white; font-size: 10px;")
+        freq_offset_label.setMinimumWidth(60)
+        self.freq_offset_slider = QSlider(Qt.Orientation.Horizontal)
+        self.freq_offset_slider.setRange(0, 100)  # 0 到 10Hz，精度0.1Hz
+        self.freq_offset_slider.setValue(0)
+        self.freq_offset_slider.valueChanged.connect(self.on_freq_offset_changed)
+        self.freq_offset_value = QLabel("0.0 Hz")
+        self.freq_offset_value.setStyleSheet("color: white; font-size: 10px;")
+        self.freq_offset_value.setMinimumWidth(50)
+        freq_offset_layout.addWidget(freq_offset_label)
+        freq_offset_layout.addWidget(self.freq_offset_slider)
+        freq_offset_layout.addWidget(self.freq_offset_value)
+        waveform_layering_layout.addLayout(freq_offset_layout)
+
+        # 相位随机化控制 - 创造更丰富的音色
+        phase_rand_layout = QHBoxLayout()
+        phase_rand_label = QLabel("相位随机:")
+        phase_rand_label.setStyleSheet("color: white; font-size: 10px;")
+        phase_rand_label.setMinimumWidth(60)
+        self.phase_rand_slider = QSlider(Qt.Orientation.Horizontal)
+        self.phase_rand_slider.setRange(0, 100)  # 0 到 100%
+        self.phase_rand_slider.setValue(0)
+        self.phase_rand_slider.valueChanged.connect(self.on_phase_rand_changed)
+        self.phase_rand_value = QLabel("0%")
+        self.phase_rand_value.setStyleSheet("color: white; font-size: 10px;")
+        self.phase_rand_value.setMinimumWidth(50)
+        phase_rand_layout.addWidget(phase_rand_label)
+        phase_rand_layout.addWidget(self.phase_rand_slider)
+        phase_rand_layout.addWidget(self.phase_rand_value)
+        waveform_layering_layout.addLayout(phase_rand_layout)
+
+        # 添加次谐波控制 - 增加低音厚重感
+        subharmonic_layout = QHBoxLayout()
+        subharmonic_label = QLabel("次谐波:")
+        subharmonic_label.setStyleSheet("color: white; font-size: 10px;")
+        subharmonic_label.setMinimumWidth(60)
+        self.subharmonic_slider = QSlider(Qt.Orientation.Horizontal)
+        self.subharmonic_slider.setRange(0, 100)  # 0 到 100%
+        self.subharmonic_slider.setValue(0)
+        self.subharmonic_slider.valueChanged.connect(self.on_subharmonic_changed)
+        self.subharmonic_value = QLabel("0%")
+        self.subharmonic_value.setStyleSheet("color: white; font-size: 10px;")
+        self.subharmonic_value.setMinimumWidth(50)
+        subharmonic_layout.addWidget(subharmonic_label)
+        subharmonic_layout.addWidget(self.subharmonic_slider)
+        subharmonic_layout.addWidget(self.subharmonic_value)
+        waveform_layering_layout.addLayout(subharmonic_layout)
+
+        enhancement_layout.addWidget(waveform_layering_group)
+
+        # ADSR包络控制
+        adsr_group = QGroupBox("包络控制 (ADSR)")
+        adsr_group.setStyleSheet("border: none; color: white; font-weight: bold; font-size: 11px;")
+        adsr_layout = QVBoxLayout(adsr_group)
+        adsr_layout.setSpacing(5)
+
+        # 启用包络复选框
+        self.envelope_cb = QCheckBox("启用包络")
+        self.envelope_cb.setChecked(self.use_envelope)
+        self.envelope_cb.setStyleSheet("color: white; font-size: 10px;")
+        self.envelope_cb.toggled.connect(self.on_toggle_envelope)
+        adsr_layout.addWidget(self.envelope_cb)
+
+        # 包络参数滑块 - 紧凑布局
+        adsr_controls = QVBoxLayout()
+        adsr_controls.setSpacing(3)
+
+        # 起音时间滑块
+        attack_layout = QHBoxLayout()
+        attack_label = QLabel("起音:")
+        attack_label.setStyleSheet("color: white; font-size: 10px;")
+        attack_label.setMinimumWidth(40)
+        self.attack_slider = QSlider(Qt.Orientation.Horizontal)
+        self.attack_slider.setRange(1, 300)  # 0.001秒到0.3秒
+        self.attack_slider.setValue(int(0.02 * 1000))  # 默认20ms
+        self.attack_slider.valueChanged.connect(self.on_adsr_changed)
+        attack_layout.addWidget(attack_label)
+        attack_layout.addWidget(self.attack_slider)
+        adsr_controls.addLayout(attack_layout)
+
+        # 衰减时间滑块
+        decay_layout = QHBoxLayout()
+        decay_label = QLabel("衰减:")
+        decay_label.setStyleSheet("color: white; font-size: 10px;")
+        decay_label.setMinimumWidth(40)
+        self.decay_slider = QSlider(Qt.Orientation.Horizontal)
+        self.decay_slider.setRange(10, 500)  # 0.01秒到0.5秒
+        self.decay_slider.setValue(int(0.1 * 1000))  # 默认100ms
+        self.decay_slider.valueChanged.connect(self.on_adsr_changed)
+        decay_layout.addWidget(decay_label)
+        decay_layout.addWidget(self.decay_slider)
+        adsr_controls.addLayout(decay_layout)
+
+        # 延音水平滑块
+        sustain_layout = QHBoxLayout()
+        sustain_label = QLabel("延音:")
+        sustain_label.setStyleSheet("color: white; font-size: 10px;")
+        sustain_label.setMinimumWidth(40)
+        self.sustain_slider = QSlider(Qt.Orientation.Horizontal)
+        self.sustain_slider.setRange(1, 100)  # 0.01到1.0
+        self.sustain_slider.setValue(int(0.7 * 100))  # 默认0.7
+        self.sustain_slider.valueChanged.connect(self.on_adsr_changed)
+        sustain_layout.addWidget(sustain_label)
+        sustain_layout.addWidget(self.sustain_slider)
+        adsr_controls.addLayout(sustain_layout)
+
+        # 释放时间滑块
+        release_layout = QHBoxLayout()
+        release_label = QLabel("释放:")
+        release_label.setStyleSheet("color: white; font-size: 10px;")
+        release_label.setMinimumWidth(40)
+        self.release_slider = QSlider(Qt.Orientation.Horizontal)
+        self.release_slider.setRange(10, 1000)  # 0.01秒到1秒
+        self.release_slider.setValue(int(0.3 * 1000))  # 默认300ms
+        self.release_slider.valueChanged.connect(self.on_adsr_changed)
+        release_layout.addWidget(release_label)
+        release_layout.addWidget(self.release_slider)
+        adsr_controls.addLayout(release_layout)
+
+        adsr_layout.addLayout(adsr_controls)
+        enhancement_layout.addWidget(adsr_group)
+
+        # 混响控制
+        reverb_group = QGroupBox("混响控制")
+        reverb_group.setStyleSheet("border: none; color: white; font-weight: bold; font-size: 11px;")
+        reverb_layout = QVBoxLayout(reverb_group)
+        reverb_layout.setSpacing(5)
+
+        # 启用混响复选框
+        self.reverb_cb = QCheckBox("启用混响")
+        self.reverb_cb.setChecked(self.add_reverb)
+        self.reverb_cb.setStyleSheet("color: white; font-size: 10px;")
+        self.reverb_cb.toggled.connect(self.on_toggle_reverb)
+        reverb_layout.addWidget(self.reverb_cb)
+
+        # 混响强度滑块
+        reverb_slider_layout = QHBoxLayout()
+        reverb_label = QLabel("强度:")
+        reverb_label.setStyleSheet("color: white; font-size: 10px;")
+        reverb_label.setMinimumWidth(40)
+        self.reverb_slider = QSlider(Qt.Orientation.Horizontal)
+        self.reverb_slider.setRange(0, 100)
+        self.reverb_slider.setValue(int(self.reverb_amount * 100))
+        self.reverb_slider.valueChanged.connect(self.on_reverb_amount_changed)
+        reverb_slider_layout.addWidget(reverb_label)
+        reverb_slider_layout.addWidget(self.reverb_slider)
+        reverb_layout.addLayout(reverb_slider_layout)
+
+        enhancement_layout.addWidget(reverb_group)
+
+        # 音符持续时间控制
+        duration_group = QGroupBox("持续时间")
+        duration_group.setStyleSheet("border: none; color: white; font-weight: bold; font-size: 11px;")
+        duration_layout = QVBoxLayout(duration_group)
+        duration_layout.setSpacing(5)
+
+        # 持续时间滑块
+        duration_slider_layout = QHBoxLayout()
+        self.duration_label = QLabel(f"时长: {self.note_duration}秒")
+        self.duration_label.setStyleSheet("color: white; font-size: 10px;")
+        self.duration_label.setMinimumWidth(80)
+        self.duration_slider = QSlider(Qt.Orientation.Horizontal)
+        self.duration_slider.setRange(5, 30)  # 0.5秒到3秒
+        self.duration_slider.setValue(int(self.note_duration * 10))  # 默认1秒
+        self.duration_slider.valueChanged.connect(self.on_duration_changed)
+        duration_slider_layout.addWidget(self.duration_label)
+        duration_slider_layout.addWidget(self.duration_slider)
+        duration_layout.addLayout(duration_slider_layout)
+
+        enhancement_layout.addWidget(duration_group)
+
+        bottom_layout.addWidget(enhancement_group)
+
+        # 添加帮助文本到底部
         help_text = QLabel(
-            "简谐波合成器: 通过添加不同频率、振幅和相位的简谐波，"
-            "观察各种波形的合成效果。尝试使用预设或自定义创建各种音色。"
+            "简谐波合成器: 通过添加不同频率、振幅和相位的简谐波，观察各种波形的合成效果。尝试使用预设或自定义创建各种音色。"
         )
         help_text.setWordWrap(True)
-        help_text.setStyleSheet("color: #AAAAAA; padding: 5px;")
-        right_layout.addWidget(help_text)
-        
-        # 添加左右部件到分割器
-        splitter.addWidget(left_widget)
-        splitter.addWidget(right_widget)
-        splitter.setSizes([300, 700])  # 设置初始分割比例
-        
-        # 添加分割器到主布局
-        main_layout.addWidget(splitter)
-    
+        help_text.setStyleSheet("color: #AAAAAA; padding: 5px; font-size: 10px;")
+        bottom_layout.addWidget(help_text)
+
+        # 设置底部区域的最大高度，使其更紧凑
+        bottom_widget.setMaximumHeight(180)  # 限制底部区域高度
+
+        # 将底部区域添加到主布局，权重较小
+        main_layout.addWidget(bottom_widget, 0)  # 底部区域权重为0，固定大小
+
+    def update_component_count(self):
+        """更新分量计数标签"""
+        count = len(self.harmonic_components)
+        enabled_count = sum(1 for comp in self.harmonic_components if comp.enabled)
+        self.component_count_label.setText(f"分量数: {enabled_count}/{count}")
+
     def setup_presets(self):
         """设置音色预设"""
         self.presets = {
@@ -688,6 +881,9 @@ class HarmonicSynthesizerPanel(QWidget):
         
         # 更新合成波形
         self.update_synthesis()
+
+        # 更新分量计数
+        self.update_component_count()
     
     def _create_component_controls(self, index, component):
         """为简谐分量创建控制界面
@@ -704,14 +900,21 @@ class HarmonicSynthesizerPanel(QWidget):
             QGroupBox {
                 border: 1px solid #555555;
                 border-radius: 5px;
-                margin-top: 5px;
-                padding: 5px;
+                margin: 3px;
+                padding: 8px;
+                padding-top: 15px;
                 color: white;
+                background-color: #2a2a2a;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px;
             }
         """)
         layout = QVBoxLayout(widget)
-        layout.setContentsMargins(10, 15, 10, 10)
-        layout.setSpacing(5)
+        layout.setContentsMargins(15, 20, 15, 15)  # 增加内边距
+        layout.setSpacing(8)  # 增加组件间距
         
         # 分量信息标签
         info_label = QLabel(f"频率: {component.frequency:.1f} Hz | 振幅: {component.amplitude:.2f} | 相位: {component.phase/np.pi:.2f}π")
@@ -838,6 +1041,7 @@ class HarmonicSynthesizerPanel(QWidget):
             
         self.harmonic_components[index].enabled = enabled
         self.update_synthesis()
+        self.update_component_count()
     
     def _remove_component(self, index):
         """删除指定的简谐分量
@@ -863,6 +1067,9 @@ class HarmonicSynthesizerPanel(QWidget):
         
         # 更新合成波形
         self.update_synthesis()
+
+        # 更新分量计数
+        self.update_component_count()
     
     def on_toggle_envelope(self, enabled):
         """启用/禁用包络控制"""
@@ -882,7 +1089,7 @@ class HarmonicSynthesizerPanel(QWidget):
     def on_duration_changed(self, value):
         """调整音符持续时间"""
         self.note_duration = value / 10.0
-        self.duration_label.setText(f"音符持续时间: {self.note_duration:.1f}秒")
+        self.duration_label.setText(f"时长: {self.note_duration:.1f}秒")
         self.update_synthesis()
         
     def on_adsr_changed(self):
@@ -993,21 +1200,41 @@ class HarmonicSynthesizerPanel(QWidget):
         """更新合成波形和音频"""
         if not self.harmonic_components:
             # 如果没有分量，清除画布
-            self.waveform_viz.canvas.figure.clear()
-            self.spectrum_viz.canvas.figure.clear()
-            self.waveform_viz.canvas.draw()
-            self.spectrum_viz.canvas.draw()
+            self.unified_viz.clear()
             return
-            
+
         sample_rate = self.audio_engine.sample_rate
         duration = self.note_duration  # 使用用户设置的持续时间
-        t = np.linspace(0, duration, int(sample_rate * duration), False)
+
+        # 为音频生成高采样率数据
+        t_audio = np.linspace(0, duration, int(sample_rate * duration), False)
+
+        # 为可视化生成优化的时间数据
+        # 根据最低频率计算合适的显示时间窗口（3-5个周期）
+        enabled_components = [comp for comp in self.harmonic_components if comp.enabled]
+        if enabled_components:
+            min_freq = min(comp.frequency for comp in enabled_components)
+            # 显示3-5个周期，取决于频率
+            if min_freq > 0:
+                cycles_to_show = 4  # 显示4个完整周期
+                display_duration = cycles_to_show / min_freq
+                # 限制显示时间在合理范围内
+                display_duration = min(display_duration, 0.5)  # 最多0.5秒
+                display_duration = max(display_duration, 0.05)  # 最少0.05秒
+            else:
+                display_duration = 0.2  # 默认0.2秒
+        else:
+            display_duration = 0.2
+
+        # 为可视化生成适当密度的时间数据（约1000个点）
+        t_display = np.linspace(0, display_duration, 1000)
         
-        # 初始化为零
-        composite_wave = np.zeros_like(t)
-        
+        # 初始化音频和显示数据
+        composite_wave_audio = np.zeros_like(t_audio)  # 用于音频播放
+        composite_wave_display = np.zeros_like(t_display)  # 用于可视化显示
+
         # 添加每个分量
-        components_data = {"time": t, "composite": None}
+        components_data = {"time": t_display, "composite": None}
         
         for i, component in enumerate(self.harmonic_components):
             if component.enabled:
@@ -1031,47 +1258,73 @@ class HarmonicSynthesizerPanel(QWidget):
                 else:
                     phase = component.phase
                 
-                # 生成基本分量波形
-                wave = component.amplitude * np.sin(
-                    2 * np.pi * freq * t + phase
+                # 生成音频用的高采样率波形
+                wave_audio = component.amplitude * np.sin(
+                    2 * np.pi * freq * t_audio + phase
                 )
-                
+
+                # 生成显示用的优化采样率波形
+                wave_display = component.amplitude * np.sin(
+                    2 * np.pi * freq * t_display + phase
+                )
+
                 # 添加次谐波 (仅对前几个分量添加)
                 if self.subharmonic_amount > 0 and i < 3:  # 只对前3个分量添加次谐波
                     # 次谐波是基频的一半
-                    subharmonic = component.amplitude * self.subharmonic_amount * np.sin(
-                        2 * np.pi * (freq / 2) * t + phase
+                    subharmonic_audio = component.amplitude * self.subharmonic_amount * np.sin(
+                        2 * np.pi * (freq / 2) * t_audio + phase
                     )
-                    wave += subharmonic
-                
+                    subharmonic_display = component.amplitude * self.subharmonic_amount * np.sin(
+                        2 * np.pi * (freq / 2) * t_display + phase
+                    )
+                    wave_audio += subharmonic_audio
+                    wave_display += subharmonic_display
+
                 # 应用ADSR包络
                 if self.use_envelope:
-                    wave = self.apply_adsr_envelope(
-                        wave, 
+                    wave_audio = self.apply_adsr_envelope(
+                        wave_audio,
                         component.attack,
                         component.decay,
                         component.sustain,
                         component.release,
                         duration
                     )
-                
+                    # 对显示数据也应用包络（按比例缩放）
+                    if display_duration < duration:
+                        # 如果显示时间短于总时间，只应用起始部分的包络
+                        envelope_ratio = display_duration / duration
+                        wave_display = self.apply_adsr_envelope(
+                            wave_display,
+                            component.attack * envelope_ratio,
+                            component.decay * envelope_ratio,
+                            component.sustain,
+                            component.release * envelope_ratio,
+                            display_duration
+                        )
+
                 # 添加到合成波
-                composite_wave += wave
-                
-                # 存储分量数据（无论启用状态如何，都存储所有分量）
-                components_data[f"component_{i}"] = wave
+                composite_wave_audio += wave_audio
+                composite_wave_display += wave_display
+
+                # 存储显示用的分量数据
+                components_data[f"component_{i}"] = wave_display
         
-        # 归一化合成波
-        if np.max(np.abs(composite_wave)) > 0:
-            composite_wave = composite_wave / np.max(np.abs(composite_wave)) * 0.9
-        
-        # 应用混响效果
+        # 归一化音频合成波
+        if np.max(np.abs(composite_wave_audio)) > 0:
+            composite_wave_audio = composite_wave_audio / np.max(np.abs(composite_wave_audio)) * 0.9
+
+        # 归一化显示合成波
+        if np.max(np.abs(composite_wave_display)) > 0:
+            composite_wave_display = composite_wave_display / np.max(np.abs(composite_wave_display)) * 0.9
+
+        # 应用混响效果（仅对音频）
         if self.add_reverb:
-            composite_wave = self.apply_reverb(composite_wave)
-            
-        # 存储合成波
-        components_data["composite"] = composite_wave
-        self.current_audio = composite_wave
+            composite_wave_audio = self.apply_reverb(composite_wave_audio)
+
+        # 存储数据
+        components_data["composite"] = composite_wave_display  # 显示用数据
+        self.current_audio = composite_wave_audio  # 音频用数据
         
         # 更新可视化
         self._update_visualization(components_data)
@@ -1093,228 +1346,16 @@ class HarmonicSynthesizerPanel(QWidget):
             t = components_data["time"]
             composite = components_data["composite"]
             
-            # 清除当前的波形图和频谱图
-            self.waveform_viz.canvas.figure.clear()
-            self.spectrum_viz.canvas.figure.clear()
-            
-            # 配置绘图样式
-            plt.style.use('dark_background')
-            
-            # 设置波形颜色
-            wave_colors = ['#00FFFF', '#FFD700', '#FF69B4', '#7CFC00', '#FF4500', '#1E90FF']  # 青色，金色，粉色，草绿色，橙红色，淡蓝色
-            
-            # ========== 绘制波形图 ==========
-            # 创建多个子图：上方显示合成波形，下方显示各个分量
-            fig_wave = self.waveform_viz.canvas.figure
-            
-            # 获取启用的分量
-            enabled_components = []
-            enabled_indices = []
-            for i, comp in enumerate(self.harmonic_components):
-                if comp.enabled:
-                    enabled_components.append(comp)
-                    enabled_indices.append(i)
-            
-            # 限制显示的分量数，避免过于拥挤
-            max_components_to_show = 4  # 最多显示4个分量 + 合成波
-            show_warning = False
-            if len(enabled_components) > max_components_to_show:
-                enabled_components = enabled_components[:max_components_to_show]
-                enabled_indices = enabled_indices[:max_components_to_show]
-                show_warning = True
-            
-            # 计算需要多少子图
-            num_subplots = 1 + len(enabled_components)  # 合成波 + 启用的分量
-            
-            # 创建子图，使用GridSpec以便更灵活地控制布局
-            gs = fig_wave.add_gridspec(num_subplots, 1, 
-                                       height_ratios=[2] + [1] * (num_subplots - 1),  # 合成波给2倍空间
-                                       hspace=0.5)  # 增加子图间距
-            
-            # 创建子图
-            axes = []
-            
-            # 合成波子图
-            ax_composite = fig_wave.add_subplot(gs[0])
-            ax_composite.set_title("合成波形", fontsize=12, color='white', pad=8)
-            ax_composite.set_facecolor('#0A0A0A')  # 深黑背景，增加对比度
-            axes.append(ax_composite)
-            
-            # 分量子图
-            for i in range(1, num_subplots):
-                comp_idx = i - 1
-                ax = fig_wave.add_subplot(gs[i])
-                if comp_idx < len(enabled_components):
-                    comp = enabled_components[comp_idx]
-                    freq = comp.frequency
-                    amp = comp.amplitude
-                    title = f"分量 {enabled_indices[comp_idx]+1}: {freq:.1f}Hz (振幅: {amp:.2f})"
-                    ax.set_title(title, fontsize=9, color='white', pad=5)
-                    ax.set_facecolor('#0A0A0A')  # 深黑背景，增加对比度
-                axes.append(ax)
-            
-            # 对波形进行下采样以减少绘制点数，更强的下采样率
-            if len(t) > 500:
-                step = max(len(t) // 500, 1)  # 确保至少下采样2倍
-                t_downsampled = t[::step]
-                composite_downsampled = composite[::step]
-            else:
-                t_downsampled = t
-                composite_downsampled = composite
-            
-            # 绘制合成波形
-            axes[0].plot(t_downsampled, composite_downsampled, color=wave_colors[0], linewidth=1.5)
-            axes[0].set_ylabel("振幅", fontsize=10)
-            axes[0].grid(True, alpha=0.3, color='#333333')
-            
-            # 设置Y轴范围，保持一致且有适当间距
-            y_max = 1.05  # 稍微大于1，给标签留出空间
-            for ax in axes:
-                ax.set_ylim(-y_max, y_max)
-            
-            # 绘制各个分量波形，更宽松的布局
-            for i in range(1, num_subplots):
-                comp_idx = i - 1
-                if comp_idx < len(enabled_indices):
-                    original_idx = enabled_indices[comp_idx]
-                    component_key = f"component_{original_idx}"
-                    if component_key in components_data:
-                        component_wave = components_data[component_key]
-                        if len(component_wave) > 500:
-                            component_wave = component_wave[::step]
-                        
-                        # 为每个分量使用不同的颜色
-                        color_idx = (comp_idx % (len(wave_colors) - 1)) + 1  # 跳过第一个颜色(留给合成波)
-                        axes[i].plot(t_downsampled, component_wave, color=wave_colors[color_idx], linewidth=1.5)
-                        axes[i].set_ylabel("振幅", fontsize=8)
-                        axes[i].grid(True, alpha=0.3, color='#333333')
-                        
-                        # 使用填充区域增强波形可见性
-                        axes[i].fill_between(t_downsampled, 0, component_wave, 
-                                           color=wave_colors[color_idx], alpha=0.1)
-                        
-                        # 周期标记，简化为只在第一个周期添加标记
-                        if comp_idx == 0 and len(t_downsampled) > 100:  # 确保有足够的点
-                            freq = enabled_components[comp_idx].frequency
-                            if freq > 0:
-                                period = 1.0 / freq
-                                if t_downsampled[-1] > period:
-                                    mark_time = period
-                                    # 只在第一个分量波形上添加标记
-                                    axes[i].axvline(x=mark_time, color='#555555', alpha=0.5, 
-                                                  linestyle='--', linewidth=0.8)
-                                    axes[i].text(mark_time + 0.02, 0.8, f'周期: {period:.4f}秒', 
-                                               color='white', fontsize=8, alpha=0.8)
-            
-            # 只在最后一个子图上显示x轴标签
-            for i in range(num_subplots-1):
-                axes[i].set_xticklabels([])
-            
-            axes[-1].set_xlabel("时间 (秒)", fontsize=10)
-            
-            # 不使用tight_layout，改用手动调整，避免警告
-            fig_wave.subplots_adjust(left=0.1, right=0.95, top=0.95, bottom=0.1, hspace=0.5)
-            
-            # 如果有太多分量被省略，添加警告文本
-            if show_warning:
-                fig_wave.text(0.5, 0.01, f"注意: 仅显示前{max_components_to_show}个分量 (共{len(self.harmonic_components)}个)",
-                            ha='center', color='yellow', fontsize=8, alpha=0.7)
-            
-            # ========== 绘制频谱图 ==========
-            if composite is not None:
-                frequencies, magnitudes = self.audio_engine.analyze_frequency_content(composite)
-                
-                # 限制频率范围，通常只显示到8000Hz或更低
-                max_freq_idx = np.searchsorted(frequencies, 8000)
-                if max_freq_idx > 0:
-                    frequencies = frequencies[:max_freq_idx]
-                    magnitudes = magnitudes[:max_freq_idx]
-                
-                # 检测峰值，以便在频谱图上标记
-                from scipy.signal import find_peaks
-                peaks, _ = find_peaks(magnitudes, height=0.1, distance=20)  # 增加distance减少标记密度
-                
-                # 绘制频谱图
-                fig_spectrum = self.spectrum_viz.canvas.figure
-                ax_spectrum = fig_spectrum.add_subplot(111)
-                ax_spectrum.set_title("频率分析", fontsize=12, color='white')
-                ax_spectrum.set_facecolor('#0A0A0A')  # 深黑背景，增加对比度
-                
-                # 绘制频谱，使用渐变色
-                # 添加频谱填充，增强视觉效果
-                ax_spectrum.fill_between(frequencies, magnitudes, color=wave_colors[0], alpha=0.2)
-                ax_spectrum.plot(frequencies, magnitudes, color=wave_colors[0], linewidth=1.2)
-                
-                # 标记分量频率，使用更清晰的布局
-                already_marked_freqs = []
-                for comp_idx, comp in enumerate(enabled_components):
-                    freq = comp.frequency
-                    # 避免标记太接近的频率
-                    if any(abs(freq - f) < 20 for f in already_marked_freqs):
-                        continue
-                        
-                    already_marked_freqs.append(freq)
-                    # 找到最接近的频率点
-                    closest_idx = np.argmin(np.abs(frequencies - freq))
-                    if closest_idx < len(frequencies):
-                        mag = magnitudes[closest_idx]
-                        # 使用与波形相同的颜色
-                        color_idx = (comp_idx % (len(wave_colors) - 1)) + 1
-                        ax_spectrum.axvline(x=freq, color=wave_colors[color_idx], alpha=0.5, linestyle='--')
-                        ax_spectrum.plot(freq, mag, 'o', color=wave_colors[color_idx], markersize=6)
-                        
-                        # 智能放置标签，避免重叠
-                        y_pos = mag + 0.05
-                        if comp_idx > 0:
-                            y_pos += 0.03 * comp_idx  # 稍微上移每个后续标签
-                        
-                        ax_spectrum.text(freq, y_pos, f"{freq:.1f}Hz", 
-                                        fontsize=9, color=wave_colors[color_idx],
-                                        ha='center', va='bottom', fontweight='bold')
-                
-                # 标记其他主要峰值，限制数量避免拥挤
-                max_other_peaks = 3
-                peak_count = 0
-                for peak_idx in peaks:
-                    if peak_count >= max_other_peaks:
-                        break
-                        
-                    if peak_idx < len(frequencies) and peak_idx < len(magnitudes):
-                        freq = frequencies[peak_idx]
-                        # 跳过已经标记过的分量频率或接近的频率
-                        if any(abs(comp.frequency - freq) < 20 for comp in enabled_components):
-                            continue
-                            
-                        # 对于次要峰值，只标记显著的峰值
-                        mag = magnitudes[peak_idx]
-                        if mag < 0.1:  # 忽略幅度太小的峰值
-                            continue
-                            
-                        ax_spectrum.plot(freq, mag, 'ro', markersize=4, alpha=0.7)
-                        peak_count += 1
-                
-                ax_spectrum.set_xlabel("频率 (Hz)", fontsize=10)
-                ax_spectrum.set_ylabel("幅度", fontsize=10)
-                ax_spectrum.grid(True, alpha=0.3, color='#333333')
-                ax_spectrum.set_xlim(0, frequencies[-1])
-                
-                # 稍微提高y轴上限，给标记留空间
-                ax_spectrum.set_ylim(0, min(1.2, max(magnitudes) * 1.3))
-                
-                # 添加标题，显示音符信息
-                if len(enabled_components) > 0:
-                    base_freq = enabled_components[0].frequency
-                    note_name = self._get_note_name(base_freq)
-                    if note_name:
-                        fig_spectrum.text(0.5, 0.95, f"基频: {base_freq:.1f}Hz ({note_name})", 
-                                        fontsize=10, color='white', ha='center')
-                
-                # 使用手动调整而不是tight_layout
-                fig_spectrum.subplots_adjust(left=0.1, right=0.95, top=0.9, bottom=0.1)
-            
-            # 刷新画布
-            self.waveform_viz.canvas.draw()
-            self.spectrum_viz.canvas.draw()
+            # ========== 使用统一可视化器更新波形显示 ==========
+            # 直接使用新的统一可视化器，使用显示时间长度
+            display_duration = t[-1] if len(t) > 0 else 0.2
+            self.unified_viz.update_waveforms(
+                components=self.harmonic_components,
+                composite_wave=composite,
+                time_data=t,
+                duration=display_duration
+            )
+
             
         except Exception as e:
             print(f"可视化更新出错: {e}")
@@ -1357,6 +1398,9 @@ class HarmonicSynthesizerPanel(QWidget):
         
         # 添加一个默认分量
         self.add_harmonic_component(440.0, 0.8, 0.0)
+
+        # 更新分量计数
+        self.update_component_count()
     
     def on_apply_preset(self):
         """应用预设按钮处理函数"""
@@ -1448,7 +1492,7 @@ class HarmonicSynthesizerPanel(QWidget):
         if "duration" in preset_data:
             self.note_duration = preset_data.get("duration", 1.0)
             self.duration_slider.setValue(int(self.note_duration * 10))
-            self.duration_label.setText(f"音符持续时间: {self.note_duration:.1f}秒")
+            self.duration_label.setText(f"时长: {self.note_duration:.1f}秒")
         
         # 更新合成
         self.update_synthesis()

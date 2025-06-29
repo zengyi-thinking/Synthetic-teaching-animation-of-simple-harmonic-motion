@@ -9,9 +9,9 @@ from PyQt6.QtWidgets import QApplication, QMainWindow, QSplitter, QHBoxLayout, Q
 from PyQt6.QtCore import Qt, pyqtSlot
 from PyQt6.QtGui import QFont
 
-from ui_framework import WavePanel, LissajousPanel, ControlPanel, COLORS, get_app_instance, AnimatedButton
-from orthogonal_animation import OrthogonalAnimationController
-from params_controller import ParamsController
+from ui.ui_framework import WavePanel, LissajousPanel, ControlPanel, COLORS, get_app_instance, AnimatedButton
+from animations.orthogonal_animation import OrthogonalAnimationController
+from ui.params_controller import ParamsController
 
 
 class OrthogonalHarmonicWindow(QMainWindow):

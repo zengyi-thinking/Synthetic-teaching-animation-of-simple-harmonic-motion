@@ -11,9 +11,9 @@ from PyQt6.QtCore import Qt, pyqtSlot
 from PyQt6.QtGui import QFont
 from matplotlib.patches import Circle, Arrow, Arc
 
-from ui_framework import WavePanel, PhaseControlPanel, MatplotlibCanvas, COLORS, get_app_instance
-from phase_animation import PhaseAnimationController
-from params_controller import ParamsController
+from ui.ui_framework import WavePanel, PhaseControlPanel, MatplotlibCanvas, COLORS, get_app_instance
+from animations.phase_animation import PhaseAnimationController
+from ui.params_controller import ParamsController
 
 
 class PhasorPanel(QWidget):
@@ -314,7 +314,7 @@ class PhaseHarmonicWindow(QMainWindow):
         main_layout.addWidget(splitter)
         
         # 添加退出按钮
-        from ui_framework import AnimatedButton
+        from ui.ui_framework import AnimatedButton
         
         # 创建退出按钮
         self.exit_btn = AnimatedButton("退出", COLORS['accent5'])

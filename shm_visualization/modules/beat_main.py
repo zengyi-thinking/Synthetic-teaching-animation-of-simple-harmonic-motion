@@ -9,9 +9,9 @@ from PyQt6.QtWidgets import QApplication, QMainWindow, QSplitter, QVBoxLayout, Q
 from PyQt6.QtCore import Qt, pyqtSlot, QTimer
 from PyQt6.QtGui import QFont, QColor
 
-from ui_framework import WavePanel, ControlPanel, MatplotlibCanvas, COLORS, get_app_instance
-from beat_animation import BeatAnimationController
-from params_controller import ParamsController
+from ui.ui_framework import WavePanel, ControlPanel, MatplotlibCanvas, COLORS, get_app_instance
+from animations.beat_animation import BeatAnimationController
+from ui.params_controller import ParamsController
 
 
 class BeatWavePanel(QWidget):
@@ -225,7 +225,8 @@ class BeatHarmonicWindow(QMainWindow):
         self.animation_controller.initialize_data()
         
         # 首次更新波形显示
-        self.update_beat_info()
+        params = self.params_controller.get_params()
+        self.update_beat_info(params['omega1'], params['omega2'])
         self.update_plots()
         
         # 默认开始动画 - 自动播放以确保动态效果
@@ -320,7 +321,7 @@ class BeatHarmonicWindow(QMainWindow):
         main_layout.addWidget(splitter)
         
         # 添加退出按钮
-        from ui_framework import AnimatedButton
+        from ui.ui_framework import AnimatedButton
         
         # 创建退出按钮
         self.exit_btn = AnimatedButton("退出", COLORS['accent5'])
@@ -385,23 +386,13 @@ class BeatHarmonicWindow(QMainWindow):
             current_t_index
         )
     
-    def update_beat_info(self):
-        """更新拍频信息"""
-        beat_freq, beat_period, main_freq = self.animation_controller.calculate_beat_frequency()
-        
-        self.beat_freq_label.setText(f"拍频: {beat_freq:.3f} Hz")
-        
-        if beat_period == float('inf'):
-            self.beat_period_label.setText("拍周期: ∞ s")
-        else:
-            self.beat_period_label.setText(f"拍周期: {beat_period:.3f} s")
-            
-        self.main_freq_label.setText(f"主频: {main_freq:.3f} Hz")
+
     
     @pyqtSlot()
     def on_params_changed(self):
         """参数变化时更新信息和图形"""
-        self.update_beat_info()
+        params = self.params_controller.get_params()
+        self.update_beat_info(params['omega1'], params['omega2'])
         
         # 强制重新计算波形，确保图形更新
         self.animation_controller._needs_full_recalculation = True
@@ -439,7 +430,7 @@ class BeatHarmonicWindow(QMainWindow):
 
         # 确保有比率预设
         if 'ratio_presets' not in params:
-            from ui_framework import RATIO_PRESETS
+            from ui.ui_framework import RATIO_PRESETS
             params['ratio_presets'] = RATIO_PRESETS
             self.params_controller.set_param('ratio_presets', RATIO_PRESETS)
 
@@ -536,7 +527,8 @@ class BeatHarmonicWindow(QMainWindow):
         self.params_controller.set_param('omega2', 4.7)
         self.params_controller.update_ui_from_params(self.control_panel)
         self.animation_controller.reset()
-        self.update_beat_info()
+        params = self.params_controller.get_params()
+        self.update_beat_info(params['omega1'], params['omega2'])
 
 
 def main():
