@@ -321,7 +321,7 @@ class BeatHarmonicWindow(QMainWindow):
         main_layout.addWidget(splitter)
         
         # 添加退出按钮
-        from ui.ui_framework import AnimatedButton
+        from ..ui.ui_framework import AnimatedButton
         
         # 创建退出按钮
         self.exit_btn = AnimatedButton("退出", COLORS['accent5'])
@@ -430,7 +430,7 @@ class BeatHarmonicWindow(QMainWindow):
 
         # 确保有比率预设
         if 'ratio_presets' not in params:
-            from ui.ui_framework import RATIO_PRESETS
+            from ..ui.ui_framework import RATIO_PRESETS
             params['ratio_presets'] = RATIO_PRESETS
             self.params_controller.set_param('ratio_presets', RATIO_PRESETS)
 

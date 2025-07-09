@@ -21,43 +21,87 @@ class PhasorPanel(QWidget):
     
     def __init__(self, parent=None):
         super().__init__(parent)
-        
-        # 创建布局
-        layout = QVBoxLayout(self)
-        
+
+        # 创建主布局
+        main_layout = QVBoxLayout(self)
+
         # 创建标题标签
         self.title_label = QLabel("相量图")
         self.title_label.setStyleSheet(f"color: {COLORS['text']}; font-weight: bold; font-size: 14pt; background-color: {COLORS['accent3']}; border-radius: 4px; padding: 5px;")
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        
+
+        # 创建水平布局，包含画布和图例
+        content_layout = QHBoxLayout()
+
         # 创建画布
         self.canvas = MatplotlibCanvas(self)
         self.canvas.axes.set_aspect('equal')
-        
+
         # 设置坐标轴
         self.canvas.axes.set_xlim(-2.5, 2.5)
         self.canvas.axes.set_ylim(-2.5, 2.5)
         self.canvas.axes.set_xlabel('实部', color=COLORS['text'])
         self.canvas.axes.set_ylabel('虚部', color=COLORS['text'])
-        
+
         # 绘制坐标轴
         self.canvas.axes.axhline(y=0, color=COLORS['text'], linestyle='-', alpha=0.3)
         self.canvas.axes.axvline(x=0, color=COLORS['text'], linestyle='-', alpha=0.3)
-        
-        # 添加到布局
-        layout.addWidget(self.title_label)
-        layout.addWidget(self.canvas)
-        
+
+        # 创建图例面板
+        self.legend_widget = QWidget()
+        self.legend_widget.setFixedWidth(120)
+        self.legend_widget.setStyleSheet(f"background-color: {COLORS['panel']}; border: 1px solid {COLORS['border']}; border-radius: 4px;")
+
+        legend_layout = QVBoxLayout(self.legend_widget)
+        legend_layout.setSpacing(8)
+        legend_layout.setContentsMargins(10, 10, 10, 10)
+
+        # 图例标题
+        legend_title = QLabel("颜色说明")
+        legend_title.setStyleSheet(f"color: {COLORS['text']}; font-weight: bold; font-size: 11pt; padding: 3px;")
+        legend_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        legend_layout.addWidget(legend_title)
+
+        # 波形1图例
+        wave1_legend = QLabel("● 波形1")
+        wave1_legend.setStyleSheet(f"color: {COLORS['accent1']}; font-weight: bold; font-size: 10pt; padding: 2px;")
+        legend_layout.addWidget(wave1_legend)
+
+        # 波形2图例
+        wave2_legend = QLabel("● 波形2")
+        wave2_legend.setStyleSheet(f"color: {COLORS['accent2']}; font-weight: bold; font-size: 10pt; padding: 2px;")
+        legend_layout.addWidget(wave2_legend)
+
+        # 合成波图例
+        composite_legend = QLabel("● 合成波")
+        composite_legend.setStyleSheet(f"color: {COLORS['accent3']}; font-weight: bold; font-size: 10pt; padding: 2px;")
+        legend_layout.addWidget(composite_legend)
+
+        # 向量和图例
+        vector_sum_legend = QLabel("┅ 向量和")
+        vector_sum_legend.setStyleSheet(f"color: {COLORS['accent2']}; font-weight: bold; font-size: 10pt; padding: 2px;")
+        legend_layout.addWidget(vector_sum_legend)
+
+        legend_layout.addStretch()  # 添加弹性空间
+
+        # 添加画布和图例到水平布局
+        content_layout.addWidget(self.canvas, 4)  # 画布占更多空间
+        content_layout.addWidget(self.legend_widget, 1)  # 图例占较少空间
+
         # 创建振幅和相位信息标签
         self.info_label = QLabel("合成振幅: 1.0   合成相位: 0.0")
         self.info_label.setStyleSheet(f"color: {COLORS['accent3']}; font-weight: bold; font-size: 12pt; background-color: rgba(26, 58, 108, 180); border: 1px solid {COLORS['accent3']}; border-radius: 4px; padding: 8px;")
         self.info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        
-        layout.addWidget(self.info_label)
-        self.setLayout(layout)
+
+        # 添加到主布局
+        main_layout.addWidget(self.title_label)
+        main_layout.addLayout(content_layout)
+        main_layout.addWidget(self.info_label)
+
+        self.setLayout(main_layout)
     
     def update_phasors(self, phasor1_x, phasor1_y, phasor2_x, phasor2_y, composite_x, composite_y):
-        """更新相量图 - 优化版本，解决遮挡问题"""
+        """更新相量图 - 优化版本，解决文本遮挡问题"""
         self.canvas.axes.clear()
 
         # 重新设置坐标轴属性
@@ -79,55 +123,55 @@ class PhasorPanel(QWidget):
         self.canvas.axes.arrow(0, 0, phasor1_x, phasor1_y, head_width=0.08, head_length=0.08,
                       fc=COLORS['accent1'], ec=COLORS['accent1'], linewidth=2.5, zorder=2)
 
+        # 在第一个向量附近添加简洁标签
+        if abs(phasor1_x) > 0.1 or abs(phasor1_y) > 0.1:
+            # 在向量端点附近放置标签，稍微偏移避免遮挡箭头
+            label1_x = phasor1_x + 0.2 * (1 if phasor1_x >= 0 else -1)
+            label1_y = phasor1_y + 0.2 * (1 if phasor1_y >= 0 else -1)
+            self.canvas.axes.text(label1_x, label1_y, 'A1',
+                                 color='white', fontsize=10, fontweight='bold',
+                                 ha='center', va='center', zorder=5,
+                                 bbox=dict(boxstyle="round,pad=0.2",
+                                         facecolor=COLORS['accent1'], alpha=0.9,
+                                         edgecolor='white', linewidth=1))
+
         # 绘制第二个相量向量（从原点出发）
         self.canvas.axes.arrow(0, 0, phasor2_x, phasor2_y, head_width=0.08, head_length=0.08,
                       fc=COLORS['accent2'], ec=COLORS['accent2'], linewidth=2.5, zorder=2)
+
+        # 在第二个向量附近添加简洁标签
+        if abs(phasor2_x) > 0.1 or abs(phasor2_y) > 0.1:
+            # 在向量端点附近放置标签，稍微偏移避免遮挡箭头
+            label2_x = phasor2_x + 0.2 * (1 if phasor2_x >= 0 else -1)
+            label2_y = phasor2_y + 0.2 * (1 if phasor2_y >= 0 else -1)
+            self.canvas.axes.text(label2_x, label2_y, 'A2',
+                                 color='white', fontsize=10, fontweight='bold',
+                                 ha='center', va='center', zorder=5,
+                                 bbox=dict(boxstyle="round,pad=0.2",
+                                         facecolor=COLORS['accent2'], alpha=0.9,
+                                         edgecolor='white', linewidth=1))
 
         # 绘制合成相量向量
         self.canvas.axes.arrow(0, 0, composite_x, composite_y, head_width=0.1, head_length=0.1,
                       fc=COLORS['accent3'], ec=COLORS['accent3'], linewidth=3.5, zorder=4)
 
+        # 在合成向量附近添加标签
+        if abs(composite_x) > 0.1 or abs(composite_y) > 0.1:
+            # 在向量端点附近放置标签，稍微偏移避免遮挡箭头
+            label_comp_x = composite_x + 0.25 * (1 if composite_x >= 0 else -1)
+            label_comp_y = composite_y + 0.25 * (1 if composite_y >= 0 else -1)
+            self.canvas.axes.text(label_comp_x, label_comp_y, 'A合成',
+                                 color='white', fontsize=10, fontweight='bold',
+                                 ha='center', va='center', zorder=5,
+                                 bbox=dict(boxstyle="round,pad=0.3",
+                                         facecolor=COLORS['accent3'], alpha=0.9,
+                                         edgecolor='white', linewidth=1.5))
+
         # 绘制向量相加路径（虚线）- 从第一个向量端点到合成向量端点
         self.canvas.axes.plot([phasor1_x, composite_x], [phasor1_y, composite_y],
                     color=COLORS['accent2'], linestyle='--', alpha=0.6, linewidth=1.5, zorder=1)
 
-        # 添加向量标签，避免遮挡
-        # 计算标签位置，避开向量箭头
-        label_offset = 0.15
-
-        # 波形1标签
-        if abs(phasor1_x) > 0.1 or abs(phasor1_y) > 0.1:
-            label1_x = phasor1_x + label_offset * (1 if phasor1_x >= 0 else -1)
-            label1_y = phasor1_y + label_offset * (1 if phasor1_y >= 0 else -1)
-            self.canvas.axes.text(label1_x, label1_y, 'A₁', color=COLORS['accent1'],
-                         fontsize=9, fontweight='bold', ha='center', va='center',
-                         bbox=dict(boxstyle="round,pad=0.2", facecolor='white', alpha=0.8, edgecolor=COLORS['accent1']))
-
-        # 波形2标签
-        if abs(phasor2_x) > 0.1 or abs(phasor2_y) > 0.1:
-            label2_x = phasor2_x + label_offset * (1 if phasor2_x >= 0 else -1)
-            label2_y = phasor2_y + label_offset * (1 if phasor2_y >= 0 else -1)
-            self.canvas.axes.text(label2_x, label2_y, 'A₂', color=COLORS['accent2'],
-                         fontsize=9, fontweight='bold', ha='center', va='center',
-                         bbox=dict(boxstyle="round,pad=0.2", facecolor='white', alpha=0.8, edgecolor=COLORS['accent2']))
-
-        # 合成向量标签
-        if abs(composite_x) > 0.1 or abs(composite_y) > 0.1:
-            label_comp_x = composite_x + label_offset * 1.5 * (1 if composite_x >= 0 else -1)
-            label_comp_y = composite_y + label_offset * 1.5 * (1 if composite_y >= 0 else -1)
-            self.canvas.axes.text(label_comp_x, label_comp_y, 'A合成', color=COLORS['accent3'],
-                         fontsize=9, fontweight='bold', ha='center', va='center',
-                         bbox=dict(boxstyle="round,pad=0.3", facecolor='white', alpha=0.9, edgecolor=COLORS['accent3']))
-
-        # 添加简化的图例，放在左下角避免遮挡
-        legend_elements = [
-            plt.Line2D([0], [0], color=COLORS['accent1'], lw=2, label='波形1'),
-            plt.Line2D([0], [0], color=COLORS['accent2'], lw=2, label='波形2'),
-            plt.Line2D([0], [0], color=COLORS['accent3'], lw=3, label='合成波'),
-            plt.Line2D([0], [0], color=COLORS['accent2'], lw=1, linestyle='--', label='向量和')
-        ]
-        self.canvas.axes.legend(handles=legend_elements, loc='lower left',
-                       framealpha=0.9, fontsize=8, fancybox=True, shadow=True)
+        # 移除内部图例，将在面板外部添加
 
         # 刷新画布
         self.canvas.draw()
@@ -314,7 +358,7 @@ class PhaseHarmonicWindow(QMainWindow):
         main_layout.addWidget(splitter)
         
         # 添加退出按钮
-        from ui.ui_framework import AnimatedButton
+        from ..ui.ui_framework import AnimatedButton
         
         # 创建退出按钮
         self.exit_btn = AnimatedButton("退出", COLORS['accent5'])

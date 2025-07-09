@@ -24,9 +24,13 @@ def setup_python_path():
 
 def main():
     """Main entry point"""
+    print("=" * 60)
     print("Simple Harmonic Motion Visualization System")
     print("简谐运动可视化系统")
-    print("=" * 50)
+    print("=" * 60)
+    print("Version: 1.0.0")
+    print("Author: SHM Visualization Team")
+    print("=" * 60)
 
     try:
         # Try to import the installed package first

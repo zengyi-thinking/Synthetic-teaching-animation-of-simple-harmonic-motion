@@ -1,0 +1,10 @@
+简谐运动可视化系统 v1.0.0
+构建时间: D:\CodeLearning\Synthetic teaching animation of simple harmonic motion\applications\shm_visualization
+包含修复:
+- 向量图文本标注优化
+- 图例外部布局
+- 界面美观性改进
+- 所有模块功能正常
+
+使用方法:
+双击 "简谐运动可视化系统.exe" 启动程序
